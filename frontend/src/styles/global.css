@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 全局样式 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #F1F3FA;
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 导航激活状态 */
+.nav-link.active {
+  background-color: #E6E9FD;
+  color: #4F4FF6;
+}
+
+/* 品牌渐变 */
+.brand-gradient {
+  background: linear-gradient(to right, #3462FE, #9D34FE);
+}
+
+.brand-gradient-text {
+  background: linear-gradient(to right, #3462FE, #9D34FE);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Ant Design 覆盖 */
+.ant-btn-primary {
+  background: linear-gradient(to right, #3462FE, #9D34FE);
+  border: none;
+}
+
+.ant-btn-primary:hover {
+  background: linear-gradient(to right, #4572FE, #AD44FE);
+}
+
+/* 卡片悬浮效果 */
+.hover-card {
+  transition: all 0.3s ease;
+}
+
+.hover-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}

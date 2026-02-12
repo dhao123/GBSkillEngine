@@ -1,0 +1,44 @@
+{
+  "name": "@ai-dev-platform/ui-ux-skill",
+  "version": "2.0.0",
+  "description": "UI/UX For AI Developer Platform Skill",
+  "keywords": [
+    "ui",
+    "ux",
+    "design-system",
+    "react-components",
+    "antd",
+    "tailwindcss"
+  ],
+  "author": "AI Developer Platform Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ai-dev-platform/ui-ux-skill.git"
+  },
+  "dependencies": {
+    "antd": "^5.0.0",
+    "@iconify/react": "^4.0.0",
+    "react-router": "^6.0.0",
+    "tailwindcss": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "@types/node": "^18.0.0",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "files": [
+    "components/",
+    "hooks/",
+    "styles/",
+    "assets/",
+    "types/",
+    "example/",
+    "README.md",
+    "SKILL.md"
+  ]
+}

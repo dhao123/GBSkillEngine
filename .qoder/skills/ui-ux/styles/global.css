@@ -1,0 +1,221 @@
+/* UI/UX Skill 全局样式 */
+
+@import 'tailwindcss';
+
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  line-height: normal;
+  font-size: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* 钉钉进步体字体 */
+@font-face {
+  font-family: 'JinBuTi';
+  src: url('https://files.zkh360.com/fonts/JinBuTi/DingTalkJinBuTi.ttf') format('truetype');
+}
+
+/* 修改tooltip组件，最高320px，超出可滚动，解决文案超多溢出屏幕 */
+.ant-tooltip-content .ant-tooltip-inner {
+  height: 100%;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+/* 导航菜单激活状态样式 */
+nav a.active {
+  background-color: #676BEF;
+  color: #FFFFFF;
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 页面背景 */
+.page-background {
+  background-color: #F1F3FA;
+}
+
+/* 卡片阴影 */
+.card-shadow {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* 品牌渐变色按钮 */
+.btn-gradient {
+  background: linear-gradient(to right, #3462FE, #9D34FE);
+  border: none;
+  color: white;
+}
+
+.btn-gradient:hover {
+  background: linear-gradient(to right, #2851E5, #8A1EEB);
+}
+
+/* 链接样式 */
+a {
+  text-decoration: none;
+  color: inherit;
+  transition: color 0.3s ease;
+}
+
+a:hover {
+  color: #676BEF;
+}
+
+/* 表格链接操作 */
+.ant-table a {
+  color: #4F4FF6;
+}
+
+.ant-table a:hover {
+  text-decoration: underline;
+}
+
+.ant-table a.text-red-500 {
+  color: #F35859;
+}
+
+/* 状态标签样式 */
+.status-tag-success {
+  color: #52c41a;
+  background-color: #f6ffed;
+  border-color: #b7eb8f;
+}
+
+.status-tag-processing {
+  color: #1890ff;
+  background-color: #e6f7ff;
+  border-color: #91d5ff;
+}
+
+.status-tag-warning {
+  color: #faad14;
+  background-color: #fffbe6;
+  border-color: #ffe58f;
+}
+
+.status-tag-error {
+  color: #ff4d4f;
+  background-color: #fff2f0;
+  border-color: #ffccc7;
+}
+
+/* 分组标题样式 */
+.section-title {
+  position: relative;
+  padding-left: 12px;
+  font-weight: 600;
+  color: #333333;
+}
+
+.section-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 16px;
+  background-color: #676BEF;
+  border-radius: 2px;
+}
+
+/* 加载动画优化 */
+.ant-spin-dot-item {
+  background-color: #676BEF;
+}
+
+/* 输入框聚焦样式 */
+.ant-input:focus,
+.ant-input-focused,
+.ant-select:focus .ant-select-selector,
+.ant-select-focused .ant-select-selector {
+  border-color: #676BEF;
+  box-shadow: 0 0 0 2px rgba(103, 107, 239, 0.1);
+}
+
+/* 按钮主色调 */
+.ant-btn-primary {
+  background-color: #676BEF;
+  border-color: #676BEF;
+}
+
+.ant-btn-primary:hover {
+  background-color: #5259D8;
+  border-color: #5259D8;
+}
+
+/* 分页器样式 */
+.ant-pagination .ant-pagination-item-active {
+  border-color: #676BEF;
+}
+
+.ant-pagination .ant-pagination-item-active a {
+  color: #676BEF;
+}
+
+/* 选择器选中项样式 */
+.ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background-color: #E6E9FD;
+  color: #4F4FF6;
+}
+
+/* 复选框和单选框样式 */
+.ant-checkbox-checked .ant-checkbox-inner,
+.ant-radio-checked .ant-radio-inner {
+  background-color: #676BEF;
+  border-color: #676BEF;
+}
+
+/* Modal样式优化 */
+.ant-modal-header {
+  border-bottom: 1px solid #D7DEF4;
+}
+
+.ant-modal-footer {
+  border-top: 1px solid #D7DEF4;
+}
+
+/* 面包屑样式 */
+.ant-breadcrumb a:hover {
+  color: #676BEF;
+}
+
+/* 标签页样式 */
+.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #676BEF;
+}
+
+.ant-tabs-ink-bar {
+  background-color: #676BEF;
+}
