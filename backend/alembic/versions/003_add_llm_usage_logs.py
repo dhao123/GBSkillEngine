@@ -44,9 +44,10 @@ def upgrade() -> None:
     op.create_index('ix_llm_usage_logs_model_name', 'llm_usage_logs', ['model_name'])
     op.create_index('ix_llm_usage_logs_created_at', 'llm_usage_logs', ['created_at'])
 
-    # 扩展 llmprovider 枚举，增加 zkh 值
+    # 扩展 llmprovider 枚举，增加 ZKH 值
     # PostgreSQL 枚举类型需要使用 ALTER TYPE
-    op.execute("ALTER TYPE llmprovider ADD VALUE IF NOT EXISTS 'zkh'")
+    # 注意：SQLAlchemy 对 PEP 435 枚举默认使用 .name（大写），非 .value
+    op.execute("ALTER TYPE llmprovider ADD VALUE IF NOT EXISTS 'ZKH'")
 
 
 def downgrade() -> None:
