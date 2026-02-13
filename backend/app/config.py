@@ -2,7 +2,7 @@
 GBSkillEngine 配置管理
 """
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import Optional, List
 import os
 
 
@@ -31,8 +31,13 @@ class Settings(BaseSettings):
     llm_api_key: Optional[str] = None
     llm_model: str = "gpt-4"
     
-    # CORS配置
-    cors_origins: list = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    # CORS配置 - 存储为字符串，逗号分隔
+    cors_origins_str: str = "http://localhost:5173,http://127.0.0.1:5173"
+    
+    @property
+    def cors_origins(self) -> List[str]:
+        """解析CORS origins为列表"""
+        return [origin.strip() for origin in self.cors_origins_str.split(',') if origin.strip()]
     
     class Config:
         env_file = ".env"

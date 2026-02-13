@@ -1,82 +1,122 @@
-version: '3.8'
-
 services:
   # PostgreSQL 数据库
   postgres:
     image: postgres:15-alpine
     container_name: gbskill-postgres
     environment:
-      POSTGRES_USER: gbskill
-      POSTGRES_PASSWORD: gbskill123
-      POSTGRES_DB: gbskillengine
+      POSTGRES_USER: ${POSTGRES_USER:-gbskill}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gbskill123}
+      POSTGRES_DB: ${POSTGRES_DB:-gbskillengine}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U gbskill -d gbskillengine"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gbskill} -d ${POSTGRES_DB:-gbskillengine}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+    networks:
+      - gbskill-network
 
   # Neo4j 图数据库
   neo4j:
     image: neo4j:5.15-community
     container_name: gbskill-neo4j
     environment:
-      NEO4J_AUTH: neo4j/neo4j123
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-neo4j123}
       NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_memory_heap_initial__size: 512m
+      NEO4J_dbms_memory_heap_max__size: 1G
     ports:
-      - "7474:7474"  # HTTP
-      - "7687:7687"  # Bolt
+      - "${NEO4J_HTTP_PORT:-7474}:7474"
+      - "${NEO4J_BOLT_PORT:-7687}:7687"
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
+      - neo4j_plugins:/plugins
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:7474"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+    networks:
+      - gbskill-network
 
   # 后端服务
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        - ENV=${ENV:-development}
     container_name: gbskill-backend
     environment:
-      DATABASE_URL: postgresql+asyncpg://gbskill:gbskill123@postgres:5432/gbskillengine
-      NEO4J_URI: bolt://neo4j:7687
-      NEO4J_USER: neo4j
-      NEO4J_PASSWORD: neo4j123
+      - ENV=${ENV:-development}
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-gbskill}:${POSTGRES_PASSWORD:-gbskill123}@postgres:5432/${POSTGRES_DB:-gbskillengine}
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=${NEO4J_USER:-neo4j}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-neo4j123}
+      - CORS_ORIGINS_STR=${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./backend:/app
-      - ./uploads:/app/uploads
+      - uploads_data:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
       neo4j:
         condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: >
+      sh -c "
+        alembic upgrade head || echo 'Migration skipped (tables may already exist)' &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 ${RELOAD_FLAG:---reload}
+      "
+    restart: unless-stopped
+    networks:
+      - gbskill-network
 
-  # 前端服务
+  # 前端服务 (开发模式)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - ENV=${ENV:-development}
     container_name: gbskill-frontend
+    environment:
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
+      - VITE_API_TARGET=http://backend:8000
     ports:
-      - "5173:5173"
+      - "${FRONTEND_PORT:-5173}:5173"
     volumes:
       - ./frontend:/app
       - /app/node_modules
     depends_on:
       - backend
     command: npm run dev -- --host 0.0.0.0
+    restart: unless-stopped
+    networks:
+      - gbskill-network
 
 volumes:
   postgres_data:
+    driver: local
   neo4j_data:
+    driver: local
   neo4j_logs:
+    driver: local
+  neo4j_plugins:
+    driver: local
+  uploads_data:
+    driver: local
+
+networks:
+  gbskill-network:
+    driver: bridge

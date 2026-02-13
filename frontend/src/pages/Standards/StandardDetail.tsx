@@ -1,7 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { Card, Descriptions, Tag, Button, Spin, message, Space } from 'antd'
-import { ArrowLeftOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { Card, Descriptions, Tag, Button, Spin, message, Space, Modal, Progress, Steps } from 'antd'
+import { 
+  ArrowLeftOutlined, 
+  ThunderboltOutlined, 
+  FileTextOutlined, 
+  DownloadOutlined,
+  EyeOutlined,
+  LoadingOutlined,
+  CheckCircleOutlined,
+  SyncOutlined
+} from '@ant-design/icons'
 import { standardsApi } from '@/services/api'
 
 interface Standard {
@@ -24,6 +33,9 @@ export default function StandardDetail() {
   const [data, setData] = useState<Standard | null>(null)
   const [loading, setLoading] = useState(true)
   const [compiling, setCompiling] = useState(false)
+  const [compileProgress, setCompileProgress] = useState(0)
+  const [compileStep, setCompileStep] = useState(0)
+  const [previewVisible, setPreviewVisible] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -40,18 +52,70 @@ export default function StandardDetail() {
     }
   }
 
+  // 编译进度模拟
+  const simulateCompileProgress = () => {
+    const steps = [
+      { step: 0, progress: 10, delay: 200 },
+      { step: 0, progress: 30, delay: 500 },
+      { step: 1, progress: 50, delay: 800 },
+      { step: 1, progress: 70, delay: 300 },
+      { step: 2, progress: 85, delay: 500 },
+      { step: 2, progress: 95, delay: 300 },
+    ]
+    
+    let index = 0
+    const timer = setInterval(() => {
+      if (index < steps.length) {
+        setCompileStep(steps[index].step)
+        setCompileProgress(steps[index].progress)
+        index++
+      } else {
+        clearInterval(timer)
+      }
+    }, steps[index]?.delay || 300)
+    
+    return timer
+  }
+
   const handleCompile = async () => {
     setCompiling(true)
+    setCompileProgress(0)
+    setCompileStep(0)
+    
+    const timer = simulateCompileProgress()
+    
     try {
       const res = await standardsApi.compile(Number(id)) as { skill_id: string }
-      message.success('编译成功')
-      loadData()
-      navigate(`/skills/${res.skill_id}`)
+      clearInterval(timer)
+      setCompileStep(3)
+      setCompileProgress(100)
+      
+      setTimeout(() => {
+        message.success('编译成功')
+        setCompiling(false)
+        navigate(`/skills/${res.skill_id}`)
+      }, 500)
     } catch (error) {
+      clearInterval(timer)
       message.error('编译失败')
-    } finally {
       setCompiling(false)
     }
+  }
+
+  // 打开文档预览
+  const handlePreview = () => {
+    if (data?.file_type === 'pdf') {
+      setPreviewVisible(true)
+    } else {
+      // Word文档无法直接预览，提示下载
+      message.info('Word文档暂不支持在线预览，请下载后查看')
+      handleDownload()
+    }
+  }
+
+  // 下载文档
+  const handleDownload = () => {
+    window.open(`/api/v1/standards/${id}/download`, '_blank')
   }
 
   if (loading) {
@@ -73,6 +137,13 @@ export default function StandardDetail() {
     published: { color: 'purple', text: '已发布' },
   }
 
+  const compileSteps = [
+    { title: '文档解析', description: '解析PDF/Word文档' },
+    { title: '结构分析', description: '识别标准规格结构' },
+    { title: 'DSL生成', description: '生成Skill DSL配置' },
+    { title: '完成', description: '编译完成' },
+  ]
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -83,6 +154,22 @@ export default function StandardDetail() {
           返回列表
         </Button>
         <Space>
+          {data.file_path && (
+            <>
+              <Button
+                icon={<EyeOutlined />}
+                onClick={handlePreview}
+              >
+                预览文档
+              </Button>
+              <Button
+                icon={<DownloadOutlined />}
+                onClick={handleDownload}
+              >
+                下载
+              </Button>
+            </>
+          )}
           {data.status === 'uploaded' && (
             <Button
               type="primary"
@@ -118,7 +205,11 @@ export default function StandardDetail() {
               {statusMap[data.status]?.text || data.status}
             </Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="文件类型">{data.file_type?.toUpperCase() || '-'}</Descriptions.Item>
+          <Descriptions.Item label="文件类型">
+            {data.file_type ? (
+              <Tag icon={<FileTextOutlined />}>{data.file_type.toUpperCase()}</Tag>
+            ) : '-'}
+          </Descriptions.Item>
           <Descriptions.Item label="创建时间">
             {new Date(data.created_at).toLocaleString()}
           </Descriptions.Item>
@@ -130,6 +221,89 @@ export default function StandardDetail() {
           </Descriptions.Item>
         </Descriptions>
       </Card>
+
+      {/* 编译进度弹窗 */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2">
+            <SyncOutlined spin={compileProgress < 100} />
+            <span>编译国标为 Skill</span>
+          </div>
+        }
+        open={compiling}
+        closable={false}
+        footer={null}
+        width={600}
+      >
+        <div className="py-6">
+          <div className="mb-6">
+            <Progress 
+              percent={compileProgress} 
+              status={compileProgress === 100 ? 'success' : 'active'}
+              strokeColor={{
+                '0%': '#3462FE',
+                '100%': '#52c41a',
+              }}
+            />
+          </div>
+          
+          <Steps
+            current={compileStep}
+            items={compileSteps.map((step, index) => ({
+              title: step.title,
+              description: step.description,
+              icon: index < compileStep ? (
+                <CheckCircleOutlined style={{ color: '#52c41a' }} />
+              ) : index === compileStep && compileProgress < 100 ? (
+                <LoadingOutlined style={{ color: '#3462FE' }} />
+              ) : undefined
+            }))}
+          />
+          
+          <div className="mt-6 text-center text-gray-500">
+            {compileProgress < 100 ? (
+              <span>正在处理 {data.standard_code}...</span>
+            ) : (
+              <span className="text-green-500">编译完成！即将跳转到Skill详情页...</span>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* PDF预览弹窗 */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2">
+            <FileTextOutlined />
+            <span>文档预览 - {data.standard_code}</span>
+          </div>
+        }
+        open={previewVisible}
+        onCancel={() => setPreviewVisible(false)}
+        width="90%"
+        style={{ top: 20 }}
+        footer={
+          <Space>
+            <Button icon={<DownloadOutlined />} onClick={handleDownload}>
+              下载文档
+            </Button>
+            <Button onClick={() => setPreviewVisible(false)}>
+              关闭
+            </Button>
+          </Space>
+        }
+        styles={{ body: { padding: 0, height: 'calc(100vh - 200px)' } }}
+      >
+        <iframe
+          src={`/api/v1/standards/${id}/preview`}
+          style={{
+            width: '100%',
+            height: '100%',
+            border: 'none',
+          }}
+          title="PDF预览"
+        />
+      </Modal>
     </div>
   )
 }
