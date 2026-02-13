@@ -269,7 +269,7 @@ async def compile_standard(
     3. 规则生成和验证
     4. DSL配置生成
     """
-    from app.services.skill_compiler.compiler import SkillCompiler
+    from app.services.skill_compiler import SkillCompilerFactory
     
     result = await db.execute(select(Standard).where(Standard.id == standard_id))
     standard = result.scalar_one_or_none()
@@ -277,8 +277,8 @@ async def compile_standard(
     if not standard:
         raise HTTPException(status_code=404, detail="国标不存在")
     
-    # 调用编译器
-    compiler = SkillCompiler(db)
+    # 使用工厂根据配置选择编译器
+    compiler = SkillCompilerFactory.create(db, mode=request.mode if request else None)
     skill = await compiler.compile(standard)
     
     # 更新国标状态

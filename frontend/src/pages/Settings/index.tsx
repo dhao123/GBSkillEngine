@@ -63,8 +63,6 @@ interface SystemInfo {
 const PROVIDER_STYLES: Record<string, { color: string; bgColor: string }> = {
   openai: { color: '#10a37f', bgColor: '#e6f7f1' },
   anthropic: { color: '#d97706', bgColor: '#fef3c7' },
-  baidu: { color: '#2932e1', bgColor: '#e8eafc' },
-  aliyun: { color: '#ff6a00', bgColor: '#fff2e8' },
   zkh: { color: '#7c3aed', bgColor: '#ede9fe' },
   local: { color: '#6b7280', bgColor: '#f3f4f6' },
 }
@@ -72,8 +70,6 @@ const PROVIDER_STYLES: Record<string, { color: string; bgColor: string }> = {
 const PROVIDER_NAMES: Record<string, string> = {
   openai: 'OpenAI',
   anthropic: 'Anthropic',
-  baidu: '百度文心',
-  aliyun: '阿里通义',
   zkh: '震坤行',
   local: '本地模型',
 }

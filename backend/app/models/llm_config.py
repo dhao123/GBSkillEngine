@@ -11,8 +11,6 @@ class LLMProvider(str, enum.Enum):
     """LLM供应商枚举"""
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
-    BAIDU = "baidu"         # 文心一言
-    ALIYUN = "aliyun"       # 通义千问
     ZKH = "zkh"             # 震坤行大模型服务
     LOCAL = "local"         # 本地模型 (Ollama等)
 
@@ -71,22 +69,6 @@ LLM_PROVIDER_INFO = {
         "default_endpoint": "https://api.anthropic.com",
         "requires_secret": False,
         "supports_custom_endpoint": True,
-    },
-    LLMProvider.BAIDU: {
-        "name": "百度文心",
-        "description": "百度文心一言大模型",
-        "models": ["ernie-4.0-8k", "ernie-3.5-8k", "ernie-speed-128k"],
-        "default_endpoint": "https://aip.baidubce.com",
-        "requires_secret": True,  # 百度需要API Key + Secret Key
-        "supports_custom_endpoint": False,
-    },
-    LLMProvider.ALIYUN: {
-        "name": "阿里通义",
-        "description": "阿里云通义千问大模型",
-        "models": ["qwen-turbo", "qwen-plus", "qwen-max"],
-        "default_endpoint": "https://dashscope.aliyuncs.com/api/v1",
-        "requires_secret": False,
-        "supports_custom_endpoint": False,
     },
     LLMProvider.ZKH: {
         "name": "震坤行",

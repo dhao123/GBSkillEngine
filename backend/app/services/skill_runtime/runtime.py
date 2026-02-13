@@ -5,7 +5,6 @@ GBSkillEngine Skill Runtime 执行引擎
 """
 import re
 import time
-import uuid
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,17 +34,14 @@ class SkillRuntime:
         self.trace_steps = []
         
         try:
-            # 1. 意图解析和领域识别
-            domain, intent_confidence = await self._intent_parsing(input_text)
-            
-            # 2. Skill路由
-            skill = await self._skill_routing(input_text, domain)
+            # 1. 加载所有可用Skill进行意图匹配
+            skill, intent_confidence = await self._match_skill(input_text)
             
             if not skill:
                 # 使用默认处理
                 result = await self._default_parse(input_text)
             else:
-                # 3. 执行Skill
+                # 2. 执行Skill
                 result = await self._execute_skill(input_text, skill)
             
             # 计算总耗时
@@ -85,87 +81,76 @@ class SkillRuntime:
             )
             raise
     
-    async def _intent_parsing(self, input_text: str) -> Tuple[str, float]:
-        """意图解析 - 识别物料所属领域"""
+    async def _match_skill(self, input_text: str) -> Tuple[Optional[Skill], float]:
+        """基于意图识别匹配最佳Skill"""
         step_start = datetime.now()
         
-        # 管材关键词
-        pipe_patterns = [
-            r"(UPVC|PVC|PE|PPR|管材|管道)",
-            r"(DN|dn)\d+",
-            r"(PN|pn)[\d.]+"
-        ]
-        
-        # 紧固件关键词
-        fastener_patterns = [
-            r"(螺栓|螺钉|螺母|垫片)",
-            r"M\d+",
-            r"\d+\.\d+级"
-        ]
-        
-        pipe_score = sum(1 for p in pipe_patterns if re.search(p, input_text, re.I))
-        fastener_score = sum(1 for p in fastener_patterns if re.search(p, input_text, re.I))
-        
-        if pipe_score > fastener_score:
-            domain = "pipe"
-            confidence = min(0.9, 0.5 + pipe_score * 0.15)
-        elif fastener_score > pipe_score:
-            domain = "fastener"
-            confidence = min(0.9, 0.5 + fastener_score * 0.15)
-        else:
-            domain = "general"
-            confidence = 0.5
-        
-        step_end = datetime.now()
-        self.trace_steps.append(EngineExecutionStep(
-            engine="IntentParsing",
-            start_time=step_start,
-            end_time=step_end,
-            duration_ms=int((step_end - step_start).total_seconds() * 1000),
-            input_data={"input_text": input_text},
-            output_data={"domain": domain, "confidence": confidence}
-        ))
-        
-        return domain, confidence
-    
-    async def _skill_routing(self, input_text: str, domain: str) -> Optional[Skill]:
-        """Skill路由 - 选择合适的Skill"""
-        step_start = datetime.now()
-        
-        # 查找激活的Skill
+        # 获取所有激活的Skill
         result = await self.db.execute(
-            select(Skill)
-            .where(Skill.domain == domain)
-            .where(Skill.status == SkillStatus.ACTIVE)
-            .order_by(Skill.priority.desc())
+            select(Skill).where(Skill.status == SkillStatus.ACTIVE).order_by(Skill.priority.desc())
         )
-        skills = result.scalars().all()
+        active_skills = result.scalars().all()
         
-        # 如果没有激活的，查找所有可用的
-        if not skills:
+        # 如果没有激活的，获取所有Skill
+        if not active_skills:
             result = await self.db.execute(
-                select(Skill)
-                .where(Skill.domain == domain)
-                .order_by(Skill.priority.desc())
+                select(Skill).order_by(Skill.priority.desc())
             )
-            skills = result.scalars().all()
+            active_skills = result.scalars().all()
         
-        selected_skill = skills[0] if skills else None
+        best_skill = None
+        best_score = 0.0
+        match_details = {}
+        
+        for skill in active_skills:
+            score = self._calculate_intent_score(input_text, skill)
+            match_details[skill.skill_id] = score
+            
+            if score > best_score:
+                best_score = score
+                best_skill = skill
         
         step_end = datetime.now()
         self.trace_steps.append(EngineExecutionStep(
-            engine="SkillRouter",
+            engine="IntentMatching",
             start_time=step_start,
             end_time=step_end,
             duration_ms=int((step_end - step_start).total_seconds() * 1000),
-            input_data={"domain": domain, "available_skills": len(skills)},
+            input_data={"input_text": input_text, "available_skills": len(active_skills)},
             output_data={
-                "selected_skill": selected_skill.skill_id if selected_skill else None,
-                "matched_count": len(skills)
+                "matched_skill": best_skill.skill_id if best_skill else None,
+                "confidence": best_score,
+                "all_scores": match_details
             }
         ))
         
-        return selected_skill
+        return best_skill, best_score
+    
+    def _calculate_intent_score(self, input_text: str, skill: Skill) -> float:
+        """计算输入文本与Skill的匹配度"""
+        dsl = skill.dsl_content
+        intent = dsl.get("intentRecognition", {})
+        
+        keywords = intent.get("keywords", [])
+        patterns = intent.get("patterns", [])
+        
+        score = 0.0
+        max_score = max(len(keywords) + len(patterns), 1)
+        
+        # 关键词匹配
+        for kw in keywords:
+            if kw.lower() in input_text.lower():
+                score += 1.0
+        
+        # 正则模式匹配（权重更高）
+        for pattern in patterns:
+            try:
+                if re.search(pattern, input_text, re.I):
+                    score += 1.5
+            except re.error:
+                continue
+        
+        return min(score / max_score, 1.0)
     
     async def _execute_skill(self, input_text: str, skill: Skill) -> MaterialParseResult:
         """执行Skill"""
@@ -174,11 +159,11 @@ class SkillRuntime:
         # 1. 属性抽取
         attributes = await self._extract_attributes(input_text, dsl)
         
-        # 2. 规则映射
-        attributes = await self._apply_rules(attributes, dsl)
+        # 2. 表格查找（增强版）
+        attributes = await self._enhanced_table_lookup(attributes, dsl)
         
-        # 3. 表格查找
-        attributes = await self._table_lookup(attributes, dsl)
+        # 3. 规则映射
+        attributes = await self._apply_rules(attributes, dsl)
         
         # 4. 类目映射
         category = await self._category_mapping(attributes, dsl)
@@ -203,12 +188,15 @@ class SkillRuntime:
             
             # 尝试正则匹配
             for pattern in patterns:
-                match = re.search(pattern, input_text, re.I)
-                if match:
-                    value = match.group(1) if match.groups() else match.group(0)
-                    confidence = 0.9
-                    source = "regex"
-                    break
+                try:
+                    match = re.search(pattern, input_text, re.I)
+                    if match:
+                        value = match.group(1) if match.groups() else match.group(0)
+                        confidence = 0.9
+                        source = "regex"
+                        break
+                except re.error:
+                    continue
             
             # 使用默认值
             if value is None and "defaultValue" in config:
@@ -218,13 +206,21 @@ class SkillRuntime:
             
             if value is not None:
                 # 类型转换
-                if config.get("type") == "dimension" and value.isdigit():
-                    value = int(value)
+                if config.get("type") == "dimension":
+                    try:
+                        # 尝试转换为数字
+                        if isinstance(value, str) and value.replace(".", "").isdigit():
+                            value = float(value) if "." in value else int(value)
+                    except (ValueError, TypeError):
+                        pass
                 
                 attributes[attr_name] = ParsedAttribute(
                     value=value,
                     confidence=confidence,
-                    source=source
+                    source=source,
+                    unit=config.get("unit", ""),
+                    displayName=config.get("displayName", attr_name),
+                    description=config.get("description", "")
                 )
         
         step_end = datetime.now()
@@ -239,71 +235,118 @@ class SkillRuntime:
         
         return attributes
     
-    async def _apply_rules(self, attributes: Dict[str, ParsedAttribute], dsl: Dict) -> Dict[str, ParsedAttribute]:
-        """规则引擎"""
-        step_start = datetime.now()
-        
-        rules = dsl.get("rules", {})
-        
-        # 这里可以应用更复杂的规则逻辑
-        # MVP版本简化处理
-        
-        step_end = datetime.now()
-        self.trace_steps.append(EngineExecutionStep(
-            engine="RuleEngine",
-            start_time=step_start,
-            end_time=step_end,
-            duration_ms=int((step_end - step_start).total_seconds() * 1000),
-            input_data={"rules_count": len(rules)},
-            output_data={"applied_rules": []}
-        ))
-        
-        return attributes
-    
-    async def _table_lookup(self, attributes: Dict[str, ParsedAttribute], dsl: Dict) -> Dict[str, ParsedAttribute]:
-        """表格查找引擎"""
+    async def _enhanced_table_lookup(
+        self, 
+        attributes: Dict[str, ParsedAttribute], 
+        dsl: Dict
+    ) -> Dict[str, ParsedAttribute]:
+        """增强版表格查找引擎"""
         step_start = datetime.now()
         tables = dsl.get("tables", {})
         found_values = {}
         
-        # DN到外径的映射
-        if "公称直径" in attributes and "dn_outer_diameter_map" in tables:
+        # 获取DN值
+        dn_value = None
+        if "公称直径" in attributes:
             dn_value = attributes["公称直径"].value
+            if isinstance(dn_value, str):
+                try:
+                    dn_value = int(dn_value)
+                except ValueError:
+                    pass
+        
+        # 获取PN值
+        pn_value = None
+        if "公称压力" in attributes:
+            pn_value = attributes["公称压力"].value
+            if isinstance(pn_value, str):
+                try:
+                    pn_value = float(pn_value)
+                except ValueError:
+                    pass
+        
+        # 1. DN → 公称外径查找
+        if dn_value and "dn_outer_diameter_map" in tables:
             table = tables["dn_outer_diameter_map"]
-            
             for row in table.get("data", []):
                 if len(row) >= 2 and row[0] == dn_value:
-                    attributes["外径"] = ParsedAttribute(
-                        value=row[1],
+                    od_value = row[1]
+                    attributes["公称外径"] = ParsedAttribute(
+                        value=od_value,
                         confidence=1.0,
-                        source="table"
+                        source="table",
+                        unit="mm",
+                        displayName="公称外径Φ(mm)",
+                        description=f"表2规定DN{dn_value}对应的公称外径d_n为{od_value}mm"
                     )
-                    found_values["外径"] = row[1]
+                    found_values["公称外径"] = od_value
                     break
         
-        # 尺寸表查找壁厚
-        if "公称直径" in attributes and "公称压力" in attributes and "dimension_table" in tables:
-            dn = attributes["公称直径"].value
-            pn = attributes["公称压力"].value
+        # 2. PN → 管系列S查找
+        series_value = None
+        if pn_value and "series_mapping" in tables:
+            table = tables["series_mapping"]
+            for row in table.get("data", []):
+                if len(row) >= 2 and row[0] == pn_value:
+                    series_value = row[1]
+                    design_coeff = row[2] if len(row) > 2 else 2.0
+                    attributes["管系列"] = ParsedAttribute(
+                        value=series_value,
+                        confidence=1.0,
+                        source="table",
+                        unit="",
+                        displayName="管系列(S)",
+                        description=f"附录B显示当设计系数C={design_coeff}时，PN{pn_value}对应{series_value}系列"
+                    )
+                    found_values["管系列"] = series_value
+                    break
+        
+        # 3. 外径 + 管系列 → 最小壁厚查找
+        od_value = found_values.get("公称外径") or (
+            attributes.get("公称外径").value if "公称外径" in attributes else None
+        )
+        
+        if od_value and series_value and "dimension_table" in tables:
             table = tables["dimension_table"]
             columns = table.get("columns", [])
             
-            # 查找PN对应的列索引
-            pn_col = None
+            # 查找系列对应的列索引
+            series_col = None
             for i, col in enumerate(columns):
-                if f"PN{pn}" in col or f"pn{pn}" in col.lower():
-                    pn_col = i
+                if series_value in col:
+                    series_col = i
                     break
             
-            if pn_col:
+            if series_col is not None:
                 for row in table.get("data", []):
-                    if row[0] == dn and len(row) > pn_col:
-                        attributes["壁厚"] = ParsedAttribute(
-                            value=row[pn_col],
+                    if len(row) > series_col and row[0] == od_value:
+                        wall_thickness = row[series_col]
+                        attributes["最小壁厚"] = ParsedAttribute(
+                            value=wall_thickness,
                             confidence=1.0,
-                            source="table"
+                            source="table",
+                            unit="mm",
+                            displayName=f"最小壁厚(e_min)",
+                            description=f"表1规定外径{od_value}mm且为{series_value}系列时，最小壁厚为{wall_thickness}mm"
                         )
-                        found_values["壁厚"] = row[pn_col]
+                        found_values["最小壁厚"] = wall_thickness
+                        
+                        # 查找壁厚偏差
+                        if "wall_thickness_tolerance" in tables:
+                            tolerance = self._lookup_wall_thickness_tolerance(
+                                wall_thickness, 
+                                tables["wall_thickness_tolerance"]
+                            )
+                            if tolerance is not None:
+                                attributes["壁厚偏差"] = ParsedAttribute(
+                                    value=f"+{tolerance}",
+                                    confidence=1.0,
+                                    source="table",
+                                    unit="mm",
+                                    displayName="壁厚偏差",
+                                    description=f"表1规定外径{od_value}mm且为{series_value}系列时，壁厚正偏差为{tolerance}mm"
+                                )
+                                found_values["壁厚偏差"] = tolerance
                         break
         
         step_end = datetime.now()
@@ -312,13 +355,86 @@ class SkillRuntime:
             start_time=step_start,
             end_time=step_end,
             duration_ms=int((step_end - step_start).total_seconds() * 1000),
-            input_data={"tables_count": len(tables)},
+            input_data={"tables_count": len(tables), "dn": dn_value, "pn": pn_value},
             output_data={"found_values": found_values}
         ))
         
         return attributes
     
-    async def _category_mapping(self, attributes: Dict[str, ParsedAttribute], dsl: Dict) -> Dict[str, str]:
+    def _lookup_wall_thickness_tolerance(
+        self, 
+        wall_thickness: float, 
+        tolerance_table: Dict
+    ) -> Optional[float]:
+        """查找壁厚偏差"""
+        for row in tolerance_table.get("data", []):
+            if len(row) >= 2:
+                range_str = str(row[0])
+                tolerance = row[1]
+                
+                # 解析范围 "6.1-10.0"
+                if "-" in range_str:
+                    parts = range_str.split("-")
+                    if len(parts) == 2:
+                        try:
+                            min_val = float(parts[0])
+                            max_val = float(parts[1])
+                            if min_val <= wall_thickness <= max_val:
+                                return tolerance
+                        except ValueError:
+                            continue
+        return None
+    
+    async def _apply_rules(
+        self, 
+        attributes: Dict[str, ParsedAttribute], 
+        dsl: Dict
+    ) -> Dict[str, ParsedAttribute]:
+        """规则引擎"""
+        step_start = datetime.now()
+        
+        rules = dsl.get("rules", {})
+        applied_rules = []
+        
+        # 应用规则逻辑
+        # 例如：根据材质推断管件材质描述
+        if "材质" in attributes:
+            material = attributes["材质"].value
+            material_desc_map = {
+                "UPVC": "硬聚氯乙烯(PVC)",
+                "PVC-U": "硬聚氯乙烯(PVC)",
+                "PVC": "聚氯乙烯(PVC)",
+                "PE": "聚乙烯(PE)",
+                "PPR": "无规共聚聚丙烯(PP-R)",
+            }
+            if material in material_desc_map:
+                attributes["管件材质"] = ParsedAttribute(
+                    value=material_desc_map[material],
+                    confidence=1.0,
+                    source="rule",
+                    unit="",
+                    displayName="管件材质",
+                    description=f"以聚氯乙烯(PVC)树脂为主要原料的混配料"
+                )
+                applied_rules.append(f"material_desc:{material}")
+        
+        step_end = datetime.now()
+        self.trace_steps.append(EngineExecutionStep(
+            engine="RuleEngine",
+            start_time=step_start,
+            end_time=step_end,
+            duration_ms=int((step_end - step_start).total_seconds() * 1000),
+            input_data={"rules_count": len(rules)},
+            output_data={"applied_rules": applied_rules}
+        ))
+        
+        return attributes
+    
+    async def _category_mapping(
+        self, 
+        attributes: Dict[str, ParsedAttribute], 
+        dsl: Dict
+    ) -> Dict[str, str]:
         """类目映射引擎"""
         step_start = datetime.now()
         
@@ -328,7 +444,9 @@ class SkillRuntime:
             "primaryCategory": category_config.get("primaryCategory", "未分类"),
             "secondaryCategory": category_config.get("secondaryCategory", ""),
             "tertiaryCategory": category_config.get("tertiaryCategory", ""),
-            "categoryId": category_config.get("categoryId", "")
+            "quaternaryCategory": category_config.get("quaternaryCategory", ""),
+            "categoryId": category_config.get("categoryId", ""),
+            "commonName": category_config.get("commonName", "")
         }
         
         step_end = datetime.now()
@@ -369,8 +487,14 @@ class SkillRuntime:
         
         material_name = "".join(material_parts) if material_parts else input_text[:20]
         
+        # 使用通用名称（如果有）
+        common_name = category.get("commonName", "")
+        if not common_name and "材质" in attributes:
+            common_name = f"工业用{attributes['材质'].value}管材"
+        
         result = MaterialParseResult(
             material_name=material_name,
+            common_name=common_name,
             category=category,
             attributes=attributes,
             standard_code=dsl.get("standardCode"),
@@ -393,11 +517,14 @@ class SkillRuntime:
         """默认解析（无匹配Skill时）"""
         return MaterialParseResult(
             material_name=input_text[:50],
+            common_name="",
             category={
                 "primaryCategory": "未分类",
                 "secondaryCategory": "",
                 "tertiaryCategory": "",
-                "categoryId": ""
+                "quaternaryCategory": "",
+                "categoryId": "",
+                "commonName": ""
             },
             attributes={},
             standard_code=None,

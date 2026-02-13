@@ -60,6 +60,7 @@ class StandardUploadResponse(BaseModel):
 
 class StandardCompileRequest(BaseModel):
     """Skill编译请求"""
+    mode: Optional[str] = Field(None, description="编译模式: mock/real，默认使用系统配置")
     auto_generate: bool = Field(True, description="是否自动生成")
     review_before_publish: bool = Field(True, description="发布前是否需要审核")
 

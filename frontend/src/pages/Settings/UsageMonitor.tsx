@@ -60,8 +60,6 @@ interface UsageLogListResponse {
 const PROVIDER_NAMES: Record<string, string> = {
   openai: 'OpenAI',
   anthropic: 'Anthropic',
-  baidu: '百度文心',
-  aliyun: '阿里通义',
   zkh: '震坤行',
   local: '本地模型',
 }
@@ -69,8 +67,6 @@ const PROVIDER_NAMES: Record<string, string> = {
 const PROVIDER_COLORS: Record<string, string> = {
   openai: '#10a37f',
   anthropic: '#d97706',
-  baidu: '#2932e1',
-  aliyun: '#ff6a00',
   zkh: '#7c3aed',
   local: '#6b7280',
 }

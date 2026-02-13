@@ -47,8 +47,6 @@ interface LLMConfigFormProps {
 const PROVIDER_DISPLAY: Record<string, { name: string; icon: string }> = {
   openai: { name: 'OpenAI', icon: 'O' },
   anthropic: { name: 'Anthropic', icon: 'A' },
-  baidu: { name: '百度文心', icon: 'B' },
-  aliyun: { name: '阿里通义', icon: 'Q' },
   zkh: { name: '震坤行', icon: 'Z' },
   local: { name: '本地模型', icon: 'L' },
 }
@@ -105,10 +103,6 @@ export default function LLMConfigForm({
                 ? '#e6f7f1'
                 : p.provider === 'anthropic'
                 ? '#fef3c7'
-                : p.provider === 'baidu'
-                ? '#e8eafc'
-                : p.provider === 'aliyun'
-                ? '#fff2e8'
                 : p.provider === 'zkh'
                 ? '#ede9fe'
                 : '#f3f4f6',
@@ -117,10 +111,6 @@ export default function LLMConfigForm({
                 ? '#10a37f'
                 : p.provider === 'anthropic'
                 ? '#d97706'
-                : p.provider === 'baidu'
-                ? '#2932e1'
-                : p.provider === 'aliyun'
-                ? '#ff6a00'
                 : p.provider === 'zkh'
                 ? '#7c3aed'
                 : '#6b7280',
