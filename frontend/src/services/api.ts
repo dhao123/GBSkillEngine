@@ -89,3 +89,32 @@ export const observabilityApi = {
     request.get<T>(`/observability/execution-logs/${traceId}`),
   metrics: <T = unknown>() => request.get<T>('/observability/metrics'),
 }
+
+// 系统配置API
+export const settingsApi = {
+  // LLM配置
+  getLLMConfigs: <T = unknown>() => request.get<T>('/settings/llm-configs'),
+  getLLMConfig: <T = unknown>(id: number) => request.get<T>(`/settings/llm-configs/${id}`),
+  createLLMConfig: <T = unknown>(data: Record<string, unknown>) => 
+    request.post<T>('/settings/llm-configs', data),
+  updateLLMConfig: <T = unknown>(id: number, data: Record<string, unknown>) => 
+    request.put<T>(`/settings/llm-configs/${id}`, data),
+  deleteLLMConfig: <T = unknown>(id: number) => 
+    request.delete<T>(`/settings/llm-configs/${id}`),
+  testConnection: <T = unknown>(id: number, testPrompt?: string) => 
+    request.post<T>(`/settings/llm-configs/${id}/test`, { test_prompt: testPrompt }),
+  setDefaultLLMConfig: <T = unknown>(id: number) => 
+    request.put<T>(`/settings/llm-configs/${id}/set-default`),
+  
+  // 供应商信息
+  getProviders: <T = unknown>() => request.get<T>('/settings/providers'),
+  
+  // 系统信息
+  getSystemInfo: <T = unknown>() => request.get<T>('/settings/system-info'),
+
+  // LLM使用监控
+  getUsageMonitor: <T = unknown>(params?: { days?: number; provider?: string }) =>
+    request.get<T>('/settings/llm-usage/monitor', params as Record<string, unknown>),
+  getUsageLogs: <T = unknown>(params?: { skip?: number; limit?: number; provider?: string; success?: boolean }) =>
+    request.get<T>('/settings/llm-usage/logs', params as Record<string, unknown>),
+}

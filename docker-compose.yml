@@ -63,6 +63,9 @@ services:
       - CORS_ORIGINS_STR=${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # LLM配置
+      - LLM_MODE=${LLM_MODE:-mock}
+      - LLM_ENCRYPTION_KEY=${LLM_ENCRYPTION_KEY:-}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:

@@ -6,6 +6,7 @@ import {
   ExperimentOutlined,
   ApartmentOutlined,
   LineChartOutlined,
+  SettingOutlined,
 } from '@ant-design/icons'
 
 const menuItems = [
@@ -15,6 +16,7 @@ const menuItems = [
   { path: '/material-parse', icon: <ExperimentOutlined />, label: '物料梳理' },
   { path: '/knowledge-graph', icon: <ApartmentOutlined />, label: '知识图谱' },
   { path: '/observability', icon: <LineChartOutlined />, label: '执行日志' },
+  { path: '/settings', icon: <SettingOutlined />, label: '系统配置' },
 ]
 
 export default function Layout() {

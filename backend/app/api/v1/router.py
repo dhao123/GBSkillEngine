@@ -2,7 +2,7 @@
 GBSkillEngine API路由聚合
 """
 from fastapi import APIRouter
-from app.api.v1 import standards, skills, material_parse, knowledge_graph, observability
+from app.api.v1 import standards, skills, material_parse, knowledge_graph, observability, settings
 
 router = APIRouter(prefix="/api/v1")
 
@@ -12,3 +12,4 @@ router.include_router(skills.router)
 router.include_router(material_parse.router)
 router.include_router(knowledge_graph.router)
 router.include_router(observability.router)
+router.include_router(settings.router)

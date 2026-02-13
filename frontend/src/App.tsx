@@ -10,6 +10,7 @@ import SkillEditor from './pages/Skills/SkillEditor'
 import MaterialParse from './pages/MaterialParse'
 import KnowledgeGraph from './pages/KnowledgeGraph'
 import ExecutionLogs from './pages/Observability/ExecutionLogs'
+import Settings from './pages/Settings'
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
         <Route path="material-parse" element={<MaterialParse />} />
         <Route path="knowledge-graph" element={<KnowledgeGraph />} />
         <Route path="observability" element={<ExecutionLogs />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
     </Routes>
   )

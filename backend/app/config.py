@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     llm_mode: str = "mock"  # mock 或 real
     llm_api_key: Optional[str] = None
     llm_model: str = "gpt-4"
+    llm_encryption_key: str = ""  # API Key加密密钥
+    
+    # 编译器配置
+    compiler_max_retries: int = 3
+    compiler_retry_delay: float = 1.0
+    compiler_enable_cache: bool = True
     
     # CORS配置 - 存储为字符串，逗号分隔
     cors_origins_str: str = "http://localhost:5173,http://127.0.0.1:5173"
