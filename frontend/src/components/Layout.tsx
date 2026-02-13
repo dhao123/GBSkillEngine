@@ -12,7 +12,7 @@ import {
 const menuItems = [
   { path: '/', icon: <HomeOutlined />, label: '首页' },
   { path: '/standards', icon: <FileTextOutlined />, label: '国标管理' },
-  { path: '/skills', icon: <ThunderboltOutlined />, label: 'Skill管理' },
+  { path: '/skills', icon: <ThunderboltOutlined />, label: 'Skills技能族' },
   { path: '/material-parse', icon: <ExperimentOutlined />, label: '物料梳理' },
   { path: '/knowledge-graph', icon: <ApartmentOutlined />, label: '知识图谱' },
   { path: '/observability', icon: <LineChartOutlined />, label: '执行日志' },
