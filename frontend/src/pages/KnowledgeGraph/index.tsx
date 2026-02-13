@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Card, Spin, message, Drawer, Descriptions, Tag, Input, Select, Radio, Empty } from 'antd'
+import { Card, Spin, message, Drawer, Descriptions, Tag, Input, Select, Radio, Empty, Segmented } from 'antd'
 import { SearchOutlined, CloseOutlined } from '@ant-design/icons'
 import G6 from '@antv/g6'
 import { knowledgeGraphApi } from '@/services/api'
+import KnowledgeGraph3D from '@/components/KnowledgeGraph3D'
 
 interface Node {
   id: string
@@ -58,6 +59,9 @@ const LAYOUT_OPTIONS = [
 ]
 
 export default function KnowledgeGraph() {
+  // 视图模式：2D 或 3D
+  const [viewMode, setViewMode] = useState<'2D' | '3D'>('3D')
+  
   const containerRef = useRef<HTMLDivElement>(null)
   const graphRef = useRef<InstanceType<typeof G6.Graph> | null>(null)
   const [loading, setLoading] = useState(true)
@@ -333,6 +337,25 @@ export default function KnowledgeGraph() {
   }
 
   return (
+    <div className="flex flex-col gap-4">
+      {/* 视图模式切换 */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-bold m-0">MRO国标知识图谱</h2>
+        <Segmented
+          value={viewMode}
+          onChange={(value) => setViewMode(value as '2D' | '3D')}
+          options={[
+            { label: '2D 视图', value: '2D' },
+            { label: '3D 视图', value: '3D' },
+          ]}
+        />
+      </div>
+
+      {/* 3D视图 */}
+      {viewMode === '3D' && <KnowledgeGraph3D />}
+
+      {/* 2D视图 */}
+      {viewMode === '2D' && (
     <div className="flex gap-4">
       {/* 主图谱区域 */}
       <div className="flex-1">
@@ -512,6 +535,8 @@ export default function KnowledgeGraph() {
           <Empty description="请选择一个节点" />
         )}
       </Drawer>
+    </div>
+      )}
     </div>
   )
 }

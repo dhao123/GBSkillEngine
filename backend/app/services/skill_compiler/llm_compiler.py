@@ -129,6 +129,15 @@ class LLMSkillCompiler:
         
         logger.info(f"LLM编译完成: {skill.skill_id}")
         
+        # Step 9: 同步到Neo4j知识图谱
+        try:
+            from app.services.knowledge_graph.sync_service import kg_sync_service
+            await kg_sync_service.sync_skill(skill, standard)
+            logger.info(f"Skill已同步到Neo4j知识图谱: {skill.skill_id}")
+        except Exception as e:
+            # Neo4j同步失败不应影响主流程
+            logger.warning(f"Neo4j同步失败（不影响Skill编译）: {e}")
+        
         return skill
     
     def _get_document_content(self, max_length: int = 8000) -> str:

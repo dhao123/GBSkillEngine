@@ -79,6 +79,15 @@ export const knowledgeGraphApi = {
     request.post<T>('/knowledge-graph/relationships', data),
   query: <T = unknown>(cypher: string, parameters?: Record<string, unknown>) => 
     request.post<T>('/knowledge-graph/query', { cypher, parameters }),
+  // 3D图谱API
+  visualize3D: <T = unknown>(params?: { 
+    start_year?: number
+    end_year?: number
+    domains?: string
+    limit?: number 
+  }) => request.get<T>('/knowledge-graph/3d/visualize', params as Record<string, unknown>),
+  getDomains: <T = unknown>() => request.get<T>('/knowledge-graph/3d/domains'),
+  getTimeSlices: <T = unknown>() => request.get<T>('/knowledge-graph/3d/time-slices'),
 }
 
 // 可观测API
