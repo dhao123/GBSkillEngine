@@ -22,12 +22,12 @@ logger = logging.getLogger(__name__)
 class LLMProviderFactory:
     """LLM Provider工厂类"""
     
-    # 供应商到Provider类的映射
+    # 供应商到Provider类的映射 (使用小写字符串作为 key)
     _provider_map = {
-        LLMProvider.OPENAI: OpenAIProvider,
-        LLMProvider.ANTHROPIC: AnthropicProvider,
-        LLMProvider.ZKH: ZKHProvider,
-        LLMProvider.LOCAL: LocalProvider,
+        "openai": OpenAIProvider,
+        "anthropic": AnthropicProvider,
+        "zkh": ZKHProvider,
+        "local": LocalProvider,
     }
     
     @classmethod
@@ -41,12 +41,14 @@ class LLMProviderFactory:
         Returns:
             BaseLLMProvider实例
         """
-        provider_class = cls._provider_map.get(config.provider)
+        # provider 为 String 列，统一转小写匹配
+        provider_key = str(config.provider).strip().lower()
+        provider_class = cls._provider_map.get(provider_key)
         
         if not provider_class:
             raise LLMError(
-                message=f"不支持的供应商: {config.provider.value}",
-                provider=config.provider.value
+                message=f"不支持的供应商: {config.provider}",
+                provider=provider_key
             )
         
         # 解密API Key
@@ -57,7 +59,7 @@ class LLMProviderFactory:
             except Exception as e:
                 raise LLMError(
                     message=f"API Key解密失败: {str(e)}",
-                    provider=config.provider.value
+                    provider=provider_key
                 )
         
         # 解密API Secret (如果有)
@@ -70,7 +72,7 @@ class LLMProviderFactory:
         
         # 创建Provider配置
         provider_config = ProviderConfig(
-            provider=config.provider.value,
+            provider=provider_key,
             api_key=api_key,
             api_secret=api_secret,
             model_name=config.model_name,

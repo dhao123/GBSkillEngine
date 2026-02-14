@@ -188,7 +188,7 @@ async def upload_standard(
     return StandardUploadResponse(
         id=standard.id,
         standard_code=standard.standard_code,
-        status=standard.status.value,
+        status=standard.status,
         file_path=file_path,
         message="上传成功"
     )

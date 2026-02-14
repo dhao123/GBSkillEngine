@@ -7,6 +7,7 @@ import {
   ApartmentOutlined,
   LineChartOutlined,
   SettingOutlined,
+  DashboardOutlined,
 } from '@ant-design/icons'
 
 const menuItems = [
@@ -14,6 +15,7 @@ const menuItems = [
   { path: '/standards', icon: <FileTextOutlined />, label: '国标管理' },
   { path: '/skills', icon: <ThunderboltOutlined />, label: 'Skills技能族' },
   { path: '/material-parse', icon: <ExperimentOutlined />, label: '物料梳理' },
+  { path: '/benchmark/datasets', icon: <DashboardOutlined />, label: '评测系统' },
   { path: '/knowledge-graph', icon: <ApartmentOutlined />, label: '知识图谱' },
   { path: '/observability', icon: <LineChartOutlined />, label: '执行日志' },
   { path: '/settings', icon: <SettingOutlined />, label: '系统配置' },
@@ -61,7 +63,7 @@ export default function Layout() {
         {/* 头部 */}
         <header className="h-[60px] bg-white shadow-sm flex items-center justify-between px-6">
           <div className="text-lg font-medium text-gray-700">
-            国标 → Skill 编译 → 知识图谱 → 物料标准化梳理
+            国标 → Skills 技能  → 知识图谱 → 物料标准化梳理
           </div>
           <div className="text-sm text-gray-500">
             v1.0.0

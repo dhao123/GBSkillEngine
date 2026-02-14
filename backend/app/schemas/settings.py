@@ -19,6 +19,14 @@ class LLMConfigBase(BaseModel):
     max_tokens: int = Field(4096, ge=1, le=128000, description="最大Token数")
     timeout: int = Field(60, ge=1, le=600, description="请求超时(秒)")
 
+    @field_validator('provider', mode='before')
+    @classmethod
+    def normalize_provider(cls, v):
+        """兼容数据库中大小写不一致的历史数据"""
+        if isinstance(v, str):
+            return v.strip().lower()
+        return v
+
 
 class LLMConfigCreate(LLMConfigBase):
     """创建LLM配置Schema"""

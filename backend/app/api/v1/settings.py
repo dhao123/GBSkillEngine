@@ -156,7 +156,7 @@ async def create_llm_config(
     await db.commit()
     await db.refresh(config)
     
-    logger.info(f"创建LLM配置: {config.name} ({config.provider.value})")
+    logger.info(f"创建LLM配置: {config.name} ({config.provider})")
     
     return _config_to_response(config)
 
@@ -278,7 +278,7 @@ async def test_llm_connection(
     # 执行连接测试
     start_time = time.time()
     test_result = await _test_provider_connection(
-        provider=config.provider,
+        provider=LLMProvider.from_db_value(config.provider),
         api_key=api_key,
         api_secret=api_secret,
         model_name=config.model_name,
@@ -316,7 +316,7 @@ async def _test_provider_connection(
         else:
             return ConnectionTestResponse(
                 success=False,
-                message=f"不支持的供应商: {provider.value}"
+                message=f"不支持的供应商: {provider}"
             )
     except Exception as e:
         logger.error(f"连接测试失败: {str(e)}")
@@ -660,7 +660,7 @@ async def get_system_info(db: AsyncSession = Depends(get_db)):
         version="1.0.0",
         llm_mode=settings.llm_mode,
         default_llm_config_id=default_config.id if default_config else None,
-        default_llm_provider=default_config.provider.value if default_config else None,
+        default_llm_provider=default_config.provider if default_config else None,
         default_llm_model=default_config.model_name if default_config else None,
     )
 

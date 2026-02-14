@@ -1,18 +1,29 @@
 """
 GBSkillEngine LLM配置数据模型
 """
-from sqlalchemy import Column, Integer, String, Text, DateTime, Enum as SQLEnum, Float, Boolean
+from sqlalchemy import Column, Integer, String, Text, DateTime, Float, Boolean, event
 from sqlalchemy.sql import func
 from app.core.database import Base
 import enum
 
 
 class LLMProvider(str, enum.Enum):
-    """LLM供应商枚举"""
+    """LLM供应商枚举 - 用于 Pydantic Schema 验证和业务逻辑"""
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     ZKH = "zkh"             # 震坤行大模型服务
     LOCAL = "local"         # 本地模型 (Ollama等)
+
+    @classmethod
+    def from_db_value(cls, value: str) -> "LLMProvider":
+        """从数据库值（可能大小写不一致）安全转换为枚举"""
+        if value is None:
+            return cls.OPENAI
+        normalized = value.strip().lower()
+        for member in cls:
+            if member.value == normalized:
+                return member
+        raise ValueError(f"Unknown provider: {value}")
 
 
 class LLMConfig(Base):
@@ -22,7 +33,9 @@ class LLMConfig(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     
     # 基本信息
-    provider = Column(SQLEnum(LLMProvider), nullable=False, comment="LLM供应商")
+    # 使用 String 而非 SQLEnum，彻底规避 PostgreSQL ENUM 类型的大小写映射问题
+    # 验证由 Pydantic Schema 层和 LLMProvider.from_db_value() 负责
+    provider = Column(String(50), nullable=False, comment="LLM供应商")
     name = Column(String(100), nullable=False, comment="配置名称")
     
     # API认证 (加密存储)
@@ -49,7 +62,7 @@ class LLMConfig(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment="更新时间")
     
     def __repr__(self):
-        return f"<LLMConfig {self.id}: {self.name} ({self.provider.value})>"
+        return f"<LLMConfig {self.id}: {self.name} ({self.provider})>"
 
 
 # 供应商信息配置

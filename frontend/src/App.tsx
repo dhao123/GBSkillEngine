@@ -11,6 +11,7 @@ import MaterialParse from './pages/MaterialParse'
 import KnowledgeGraph from './pages/KnowledgeGraph'
 import ExecutionLogs from './pages/Observability/ExecutionLogs'
 import Settings from './pages/Settings'
+import { DatasetList, DatasetDetail, RunDetail } from './pages/Benchmark'
 
 function App() {
   return (
@@ -27,6 +28,9 @@ function App() {
         <Route path="knowledge-graph" element={<KnowledgeGraph />} />
         <Route path="observability" element={<ExecutionLogs />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="benchmark/datasets" element={<DatasetList />} />
+        <Route path="benchmark/datasets/:id" element={<DatasetDetail />} />
+        <Route path="benchmark/runs/:id" element={<RunDetail />} />
       </Route>
     </Routes>
   )

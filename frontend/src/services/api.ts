@@ -127,3 +127,56 @@ export const settingsApi = {
   getUsageLogs: <T = unknown>(params?: { skip?: number; limit?: number; provider?: string; success?: boolean }) =>
     request.get<T>('/settings/llm-usage/logs', params as Record<string, unknown>),
 }
+
+// Benchmark 评测系统 API
+export const benchmarkApi = {
+  // 数据集
+  listDatasets: <T = unknown>(params?: Record<string, unknown>) => 
+    request.get<T>('/benchmark/datasets', params),
+  getDataset: <T = unknown>(id: number) => request.get<T>(`/benchmark/datasets/${id}`),
+  createDataset: <T = unknown>(data: Record<string, unknown>) => 
+    request.post<T>('/benchmark/datasets', data),
+  updateDataset: <T = unknown>(id: number, data: Record<string, unknown>) => 
+    request.put<T>(`/benchmark/datasets/${id}`, data),
+  deleteDataset: <T = unknown>(id: number) => request.delete<T>(`/benchmark/datasets/${id}`),
+  
+  // 测试用例
+  listCases: <T = unknown>(datasetId: number, params?: Record<string, unknown>) => 
+    request.get<T>(`/benchmark/datasets/${datasetId}/cases`, params),
+  getCase: <T = unknown>(caseId: number) => request.get<T>(`/benchmark/cases/${caseId}`),
+  createCase: <T = unknown>(datasetId: number, data: Record<string, unknown>) => 
+    request.post<T>(`/benchmark/datasets/${datasetId}/cases`, data),
+  batchCreateCases: <T = unknown>(datasetId: number, cases: Record<string, unknown>[]) => 
+    request.post<T>(`/benchmark/datasets/${datasetId}/cases/batch`, { cases }),
+  updateCase: <T = unknown>(caseId: number, data: Record<string, unknown>) => 
+    request.put<T>(`/benchmark/cases/${caseId}`, data),
+  deleteCase: <T = unknown>(caseId: number) => request.delete<T>(`/benchmark/cases/${caseId}`),
+  
+  // 数据生成
+  generateCases: <T = unknown>(datasetId: number, options: Record<string, unknown>) => 
+    request.post<T>(`/benchmark/datasets/${datasetId}/generate`, options),
+  
+  // 评测运行
+  listRuns: <T = unknown>(params?: Record<string, unknown>) => 
+    request.get<T>('/benchmark/runs', params),
+  getRun: <T = unknown>(runId: number) => request.get<T>(`/benchmark/runs/${runId}`),
+  createRun: <T = unknown>(data: Record<string, unknown>) => 
+    request.post<T>('/benchmark/runs', data),
+  executeRun: <T = unknown>(runId: number) => 
+    request.post<T>(`/benchmark/runs/${runId}/execute`),
+  getRunMetrics: <T = unknown>(runId: number) => 
+    request.get<T>(`/benchmark/runs/${runId}/metrics`),
+  getRunResults: <T = unknown>(runId: number, params?: Record<string, unknown>) => 
+    request.get<T>(`/benchmark/runs/${runId}/results`, params),
+  getFailedCases: <T = unknown>(runId: number) => 
+    request.get<T>(`/benchmark/runs/${runId}/failed-cases`),
+  
+  // 生成模板
+  listTemplates: <T = unknown>(params?: Record<string, unknown>) => 
+    request.get<T>('/benchmark/templates', params),
+  createTemplate: <T = unknown>(data: Record<string, unknown>) => 
+    request.post<T>('/benchmark/templates', data),
+  updateTemplate: <T = unknown>(id: number, data: Record<string, unknown>) => 
+    request.put<T>(`/benchmark/templates/${id}`, data),
+  deleteTemplate: <T = unknown>(id: number) => request.delete<T>(`/benchmark/templates/${id}`),
+}

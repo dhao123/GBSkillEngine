@@ -14,6 +14,12 @@ from app.models.category import Category
 from app.models.skill_family import SkillFamily, SkillFamilyMember
 from app.models.attribute_definition import AttributeDefinition, DomainAttribute
 
+# Benchmark评测系统模型
+from app.models.benchmark import (
+    BenchmarkDataset, BenchmarkCase, BenchmarkRun, BenchmarkResult, GenerationTemplate,
+    DatasetSourceType, DatasetStatus, CaseDifficulty, CaseSourceType, RunStatus, ResultStatus
+)
+
 __all__ = [
     # 原有模型
     "Standard",
@@ -37,4 +43,16 @@ __all__ = [
     "SkillFamilyMember",
     "AttributeDefinition",
     "DomainAttribute",
+    # Benchmark评测系统模型
+    "BenchmarkDataset",
+    "BenchmarkCase",
+    "BenchmarkRun",
+    "BenchmarkResult",
+    "GenerationTemplate",
+    "DatasetSourceType",
+    "DatasetStatus",
+    "CaseDifficulty",
+    "CaseSourceType",
+    "RunStatus",
+    "ResultStatus",
 ]

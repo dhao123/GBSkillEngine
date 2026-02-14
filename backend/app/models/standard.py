@@ -1,7 +1,7 @@
 """
 GBSkillEngine 国标数据模型
 """
-from sqlalchemy import Column, Integer, String, Text, DateTime, Enum as SQLEnum, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -30,7 +30,8 @@ class Standard(Base):
     file_path = Column(String(500), nullable=True, comment="文档存储路径")
     file_type = Column(String(20), nullable=True, comment="文档类型")
     file_hash = Column(String(64), nullable=True, comment="文件Hash")
-    status = Column(SQLEnum(StandardStatus), default=StandardStatus.DRAFT, comment="状态")
+    # 使用 String 替代 SQLEnum，避免 PostgreSQL ENUM 类型大小写映射问题
+    status = Column(String(20), default=StandardStatus.DRAFT.value, comment="状态")
     
     # 新增外键关联 - 迁移后启用
     # 注意: 这些列需要运行 alembic upgrade head 后才存在

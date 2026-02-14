@@ -182,7 +182,7 @@ async def activate_skill(
     skill.status = SkillStatus.ACTIVE
     await db.commit()
     
-    return {"message": "激活成功", "status": skill.status.value}
+    return {"message": "激活成功", "status": skill.status}
 
 
 @router.put("/{skill_id}/deactivate")
@@ -200,7 +200,7 @@ async def deactivate_skill(
     skill.status = SkillStatus.DEPRECATED
     await db.commit()
     
-    return {"message": "停用成功", "status": skill.status.value}
+    return {"message": "停用成功", "status": skill.status}
 
 
 @router.get("/{skill_id}/versions", response_model=list[SkillVersionResponse])

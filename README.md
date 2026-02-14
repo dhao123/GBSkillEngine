@@ -1,6 +1,6 @@
 # GBSkillEngine
 
-MRO国标技能引擎平台 - 国标 -> Skill 编译 -> 知识图谱 -> 物料标准化梳理
+MRO国标技能引擎平台 - 国标 -> Skills 技能 -> 知识图谱 -> 物料标准化梳理
 
 ## 项目简介
 
@@ -283,7 +283,7 @@ GBSkillEngine/
 | 模块 | 路径前缀 | 说明 |
 |------|----------|------|
 | 国标管理 | `/api/v1/standards` | 国标上传、查询、编译 |
-| Skill管理 | `/api/v1/skills` | Skill CRUD、版本管理 |
+| Skills技能族 | `/api/v1/skills` | Skill CRUD、版本管理 |
 | 物料梳理 | `/api/v1/material-parse` | 物料解析、批量处理 |
 | 知识图谱 | `/api/v1/knowledge-graph` | 图谱数据查询 |
 | 可观测性 | `/api/v1/observability` | 执行日志、统计 |
