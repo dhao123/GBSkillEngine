@@ -183,6 +183,34 @@ class BaseLLMProvider(ABC):
                 retryable=True
             )
     
+    async def generate_with_vision(
+        self,
+        prompt: str,
+        image_paths: List[str],
+        system_prompt: Optional[str] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+    ) -> LLMResponse:
+        """
+        多模态生成(文本+图片)
+        
+        Args:
+            prompt: 用户提示词
+            image_paths: 图片文件路径列表
+            system_prompt: 系统提示词
+            temperature: 温度参数
+            max_tokens: 最大Token数
+            
+        Returns:
+            LLMResponse: 生成结果
+            
+        Raises:
+            NotImplementedError: 如果Provider不支持视觉能力
+        """
+        raise NotImplementedError(
+            f"{self.provider_name} 不支持视觉能力"
+        )
+    
     def _is_retryable_error(self, error: Exception) -> bool:
         """判断错误是否可重试"""
         error_str = str(error).lower()

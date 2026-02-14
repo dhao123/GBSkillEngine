@@ -3,7 +3,7 @@ GBSkillEngine LLM Skill编译器
 
 使用LLM将国标文档编译为Skill DSL
 """
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 import json
 import logging
@@ -14,7 +14,9 @@ from app.models.standard import Standard
 from app.models.skill import Skill, SkillStatus
 from app.services.llm.base import BaseLLMProvider, LLMError
 from app.services.llm.factory import get_default_provider
-from app.services.document_parser import parse_standard_document, ParsedDocument
+from app.services.document_parser import (
+    parse_standard_document, ParsedDocument, document_parser,
+)
 from app.services.skill_compiler.prompts import (
     SYSTEM_PROMPT,
     DOMAIN_DETECTION_PROMPT,
@@ -22,6 +24,7 @@ from app.services.skill_compiler.prompts import (
     INTENT_RECOGNITION_PROMPT,
     CATEGORY_MAPPING_PROMPT,
     TABLE_EXTRACTION_PROMPT,
+    VISION_TABLE_EXTRACTION_PROMPT,
 )
 from app.config import settings
 
@@ -83,7 +86,16 @@ class LLMSkillCompiler:
         # Step 0: 解析文档获取内容
         self._parsed_doc = self._parse_document(standard)
         if self._parsed_doc:
-            logger.info(f"文档解析成功，提取到 {len(self._parsed_doc.sections)} 个章节, {len(self._parsed_doc.tables)} 个表格")
+            real_tables = [
+                t for t in self._parsed_doc.tables
+                if t.get("headers") and t.get("rows")
+            ]
+            logger.info(
+                f"文档解析成功，提取到 {len(self._parsed_doc.sections)} 个章节, "
+                f"{len(self._parsed_doc.tables)} 个表格标记, "
+                f"{len(real_tables)} 个含数据的表格, "
+                f"{len(self._parsed_doc.chunks)} 个分块"
+            )
         
         # Step 1: 检测领域
         domain = await self._detect_domain(provider, standard)
@@ -99,7 +111,7 @@ class LLMSkillCompiler:
         # Step 4: 生成类目映射
         category = await self._generate_category(provider, standard, domain)
         
-        # Step 5: 提取表格数据
+        # Step 5: 提取表格数据（三层回退）
         tables = await self._extract_tables(provider, standard, domain)
         
         # Step 6: 组装完整DSL
@@ -140,16 +152,81 @@ class LLMSkillCompiler:
         
         return skill
     
-    def _get_document_content(self, max_length: int = 8000) -> str:
-        """获取文档内容摘要"""
+    # ==================== 文档内容获取 ====================
+    
+    def _get_document_content(
+        self,
+        max_length: int = 8000,
+        target_sections: Optional[List[str]] = None,
+    ) -> str:
+        """
+        获取文档内容
+        
+        当有chunks且指定target_sections时，智能选取相关章节内容；
+        否则回退到全文截断。
+        
+        Args:
+            max_length: 最大字符数
+            target_sections: 目标章节号前缀列表，如["3", "4", "5"]
+        """
         if not self._parsed_doc:
             return "文档内容不可用"
         
+        # 智能分块选取
+        if self._parsed_doc.chunks and target_sections:
+            selected_chunks = []
+            for chunk in self._parsed_doc.chunks:
+                for prefix in target_sections:
+                    if chunk.section_number.startswith(prefix):
+                        selected_chunks.append(chunk)
+                        break
+            
+            if selected_chunks:
+                parts = []
+                for chunk in selected_chunks:
+                    # 添加章节标题
+                    header = f"=== {chunk.section_number} {chunk.section_title} ==="
+                    parts.append(header)
+                    parts.append(chunk.content)
+                    
+                    # 附带该chunk关联的表格数据（文本形式）
+                    for table in chunk.tables:
+                        if table.get("headers") and table.get("rows"):
+                            table_text = self._format_table_as_text(table)
+                            parts.append(table_text)
+                
+                content = "\n\n".join(parts)
+                if len(content) > max_length:
+                    content = content[:max_length] + "\n... (内容已截断)"
+                return content
+        
+        # 回退: 全文截断
         content = self._parsed_doc.text[:max_length]
         if len(self._parsed_doc.text) > max_length:
             content += "\n... (文档内容过长，已截断)"
         
         return content
+    
+    @staticmethod
+    def _format_table_as_text(table: Dict[str, Any]) -> str:
+        """将表格数据格式化为易读的文本"""
+        lines = []
+        title = table.get("title", table.get("table_id", "表格"))
+        lines.append(f"[表格: {title}]")
+        
+        headers = table.get("headers", [])
+        if headers:
+            lines.append(" | ".join(str(h) for h in headers))
+            lines.append("-" * 40)
+        
+        rows = table.get("rows", [])
+        for row in rows[:30]:  # 限制行数防止过长
+            lines.append(" | ".join(str(v) for v in row))
+        
+        if len(rows) > 30:
+            lines.append(f"... (共{len(rows)}行，已截断)")
+        
+        return "\n".join(lines)
     
     def _get_document_summary(self, standard: Standard) -> str:
         """获取文档摘要"""
@@ -168,14 +245,27 @@ class LLMSkillCompiler:
                 parts.append(f"主要章节: {', '.join(section_titles)}")
             
             if self._parsed_doc.tables:
-                table_info = [t.get('title', t.get('table_id', '')) for t in self._parsed_doc.tables[:5]]
+                table_info = []
+                for t in self._parsed_doc.tables[:8]:
+                    label = t.get('title', t.get('table_id', ''))
+                    method = t.get('extraction_method', '')
+                    has_data = "有数据" if t.get("rows") else "仅标记"
+                    table_info.append(f"{label}({has_data})")
                 parts.append(f"包含表格: {', '.join(table_info)}")
             
-            # 添加文档正文摘要（前2000字符）
-            if self._parsed_doc.text:
+            # 添加文档正文摘要（使用智能分块获取更多内容）
+            if self._parsed_doc.chunks:
+                # 优先选取前言+范围+术语章节
+                summary_content = self._get_document_content(
+                    max_length=3000, target_sections=["0", "1", "2", "3"]
+                )
+                parts.append(f"文档内容摘要:\n{summary_content}")
+            elif self._parsed_doc.text:
                 parts.append(f"文档内容摘要:\n{self._parsed_doc.text[:2000]}")
         
         return "\n".join(parts) if parts else "无文档摘要"
+    
+    # ==================== LLM调用步骤 ====================
     
     async def _detect_domain(self, provider: BaseLLMProvider, standard: Standard) -> str:
         """检测国标领域"""
@@ -223,13 +313,19 @@ class LLMSkillCompiler:
         standard: Standard, 
         domain: str
     ) -> Dict[str, Any]:
-        """提取属性定义"""
+        """提取属性定义 - 使用智能分块选取技术要求相关章节"""
+        # 选取术语+技术要求章节(3-6章), 提升上限到12000字符
+        doc_content = self._get_document_content(
+            max_length=12000,
+            target_sections=["3", "4", "5", "6"]
+        )
+        
         prompt = ATTRIBUTE_EXTRACTION_PROMPT.format(
             standard_code=standard.standard_code,
             standard_name=standard.standard_name,
             domain=domain,
             product_scope=standard.product_scope or "未指定",
-            document_content=self._get_document_content(6000)
+            document_content=doc_content
         )
         
         try:
@@ -295,13 +391,39 @@ class LLMSkillCompiler:
         standard: Standard,
         domain: str
     ) -> Dict[str, Any]:
-        """提取表格数据（用于尺寸查找）"""
-        # 构建表格提取提示
+        """
+        提取表格数据 - 三层回退策略
+        
+        Layer 1: 使用pdfplumber已提取的结构化表格
+        Layer 2: LLM文本推断
+        Layer 3: Vision API图像识别
+        Fallback: 领域默认表格
+        """
+        # === Layer 1: pdfplumber已提取的表格 ===
+        if self._parsed_doc and self._parsed_doc.tables:
+            real_tables = [
+                t for t in self._parsed_doc.tables
+                if t.get("headers") and t.get("rows") and len(t.get("rows", [])) >= 2
+            ]
+            if real_tables:
+                logger.info(f"Layer 1: 使用pdfplumber提取的 {len(real_tables)} 个表格")
+                converted = self._convert_tables_to_dsl(real_tables, domain)
+                if converted and self._validate_table_data(converted):
+                    return converted
+                logger.info("Layer 1: pdfplumber表格转换后验证不通过，继续Layer 2")
+        
+        # === Layer 2: LLM文本提取 ===
+        # 使用智能分块选取含表格的章节
+        doc_content = self._get_document_content(
+            max_length=12000,
+            target_sections=["4", "5", "6", "附录"]
+        )
+        
         prompt = TABLE_EXTRACTION_PROMPT.format(
             standard_code=standard.standard_code,
             standard_name=standard.standard_name,
             domain=domain,
-            document_content=self._get_document_content(8000)
+            document_content=doc_content
         )
         
         try:
@@ -309,10 +431,187 @@ class LLMSkillCompiler:
                 prompt=prompt,
                 system_prompt=SYSTEM_PROMPT
             )
-            return result
+            if self._validate_table_data(result):
+                logger.info("Layer 2: LLM文本提取表格成功")
+                return result
+            logger.info("Layer 2: LLM返回的表格数据验证不通过，继续Layer 3")
         except Exception as e:
-            logger.warning(f"表格提取失败，使用默认表格: {e}")
-            return self._get_default_tables(domain)
+            logger.warning(f"Layer 2: LLM表格提取失败: {e}")
+        
+        # === Layer 3: Vision API ===
+        try:
+            table_pages = self._identify_table_pages()
+            if table_pages and standard.file_path:
+                logger.info(f"Layer 3: 尝试Vision API提取，涉及页面: {table_pages}")
+                images = document_parser.render_pages_to_images(
+                    standard.file_path, table_pages[:5]  # 最多5页
+                )
+                if images:
+                    image_paths = list(images.values())
+                    try:
+                        vision_response = await provider.generate_with_vision(
+                            prompt=VISION_TABLE_EXTRACTION_PROMPT.format(
+                                standard_code=standard.standard_code,
+                                standard_name=standard.standard_name,
+                                domain=domain,
+                            ),
+                            image_paths=image_paths,
+                            system_prompt=SYSTEM_PROMPT,
+                            max_tokens=8192,
+                        )
+                        # 解析vision返回的JSON
+                        vision_result = self._parse_vision_response(vision_response.content)
+                        if vision_result and self._validate_table_data(vision_result):
+                            logger.info("Layer 3: Vision API提取表格成功")
+                            return vision_result
+                    except NotImplementedError:
+                        logger.info("Layer 3: 当前Provider不支持Vision，跳过")
+                    except Exception as e:
+                        logger.warning(f"Layer 3: Vision API提取失败: {e}")
+                    finally:
+                        # 清理临时图片
+                        self._cleanup_temp_images(images)
+        except Exception as e:
+            logger.warning(f"Layer 3: Vision流程异常: {e}")
+        
+        # === Fallback ===
+        logger.info("所有表格提取层失败，使用领域默认表格")
+        return self._get_default_tables(domain)
+    
+    # ==================== 表格辅助方法 ====================
+    
+    def _convert_tables_to_dsl(
+        self, tables: List[Dict[str, Any]], domain: str
+    ) -> Dict[str, Any]:
+        """
+        将pdfplumber提取的原始表格转换为DSL格式
+        
+        尝试根据表头关键字识别表格类型(DN映射、管系列映射、尺寸表等)
+        """
+        result = {}
+        
+        for table in tables:
+            headers = table.get("headers", [])
+            rows = table.get("rows", [])
+            title = table.get("title", "")
+            header_text = " ".join(str(h).lower() for h in headers)
+            title_lower = title.lower() if title else ""
+            
+            table_entry = {
+                "description": title or f"提取自PDF第{table.get('page', '?')}页",
+                "source": f"pdfplumber自动提取 (第{table.get('page', '?')}页)",
+                "columns": [str(h) for h in headers],
+                "data": rows,
+            }
+            
+            if domain == "pipe":
+                # DN-外径映射表
+                if ("dn" in header_text and "外径" in header_text) or "dn" in title_lower:
+                    result["dn_outer_diameter_map"] = table_entry
+                # PN-管系列映射
+                elif ("pn" in header_text and ("系列" in header_text or "s" in header_text)):
+                    result["series_mapping"] = table_entry
+                # 尺寸表(壁厚)
+                elif "壁厚" in header_text or "壁厚" in title_lower:
+                    result["dimension_table"] = table_entry
+                # 偏差/公差表
+                elif "偏差" in header_text or "公差" in header_text:
+                    result["wall_thickness_tolerance"] = table_entry
+                else:
+                    # 通用: 用table_id作为key
+                    key = table.get("table_id", f"table_{len(result)}")
+                    result[key] = table_entry
+            
+            elif domain == "fastener":
+                if "螺纹" in header_text or "规格" in header_text:
+                    result["thread_spec_table"] = table_entry
+                elif "强度" in header_text or "等级" in header_text:
+                    result["strength_grade_table"] = table_entry
+                else:
+                    key = table.get("table_id", f"table_{len(result)}")
+                    result[key] = table_entry
+            
+            else:
+                key = table.get("table_id", f"table_{len(result)}")
+                result[key] = table_entry
+        
+        return result
+    
+    @staticmethod
+    def _validate_table_data(result: Dict[str, Any]) -> bool:
+        """验证表格数据是否有实质内容"""
+        if not result or not isinstance(result, dict):
+            return False
+        
+        has_real_data = False
+        for key, table in result.items():
+            if not isinstance(table, dict):
+                continue
+            data = table.get("data", [])
+            if isinstance(data, list) and len(data) >= 2:
+                has_real_data = True
+                break
+        
+        return has_real_data
+    
+    def _identify_table_pages(self) -> List[int]:
+        """从ParsedDocument中找出包含表格的页码列表"""
+        if not self._parsed_doc:
+            return []
+        
+        pages = set()
+        for table in self._parsed_doc.tables:
+            page = table.get("page")
+            if page:
+                pages.add(page)
+        
+        # 也检查chunks中带表格的
+        for chunk in self._parsed_doc.chunks:
+            if chunk.tables:
+                for p in range(chunk.page_range[0], chunk.page_range[1] + 1):
+                    pages.add(p)
+        
+        return sorted(pages)
+    
+    @staticmethod
+    def _parse_vision_response(content: str) -> Optional[Dict[str, Any]]:
+        """解析Vision API返回的文本，提取JSON"""
+        content = content.strip()
+        
+        # 移除可能的markdown代码块
+        if content.startswith("```json"):
+            content = content[7:]
+        elif content.startswith("```"):
+            content = content[3:]
+        if content.endswith("```"):
+            content = content[:-3]
+        content = content.strip()
+        
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            logger.warning(f"Vision返回内容无法解析为JSON: {content[:200]}...")
+            return None
+    
+    @staticmethod
+    def _cleanup_temp_images(images: Dict[int, str]):
+        """清理临时渲染的图片文件"""
+        dirs_to_clean = set()
+        for path in images.values():
+            try:
+                if os.path.exists(path):
+                    dirs_to_clean.add(os.path.dirname(path))
+                    os.remove(path)
+            except Exception:
+                pass
+        for d in dirs_to_clean:
+            try:
+                if os.path.isdir(d) and not os.listdir(d):
+                    os.rmdir(d)
+            except Exception:
+                pass
+    
+    # ==================== DSL组装与验证 ====================
     
     def _assemble_dsl(
         self,
@@ -365,6 +664,8 @@ class LLMSkillCompiler:
                     logger.warning(f"属性 {attr_name} 的正则表达式无效: {pattern}, 错误: {e}")
         
         return True
+    
+    # ==================== 默认值回退 ====================
     
     def _get_default_attributes(self, domain: str) -> Dict[str, Any]:
         """获取默认属性定义"""
