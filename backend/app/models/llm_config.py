@@ -73,8 +73,8 @@ LLM_PROVIDER_INFO = {
     LLMProvider.ZKH: {
         "name": "震坤行",
         "description": "震坤行大模型服务 (兼容OpenAI API)",
-        "models": ["zkh-mro-v1", "zkh-mro-v2", "zkh-general"],
-        "default_endpoint": "https://ai.zkh.com/v1",
+        "models": ["ep_20250805_urdq", "ep_20251217_i18v", "ep_20250805_ur59", "ep_20250728_izkl"],
+        "default_endpoint": "https://ai-dev-gateway.zkh360.com/llm/v1",
         "requires_secret": False,
         "supports_custom_endpoint": True,
     },

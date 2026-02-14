@@ -305,10 +305,10 @@ async def _test_provider_connection(
             return await _test_openai(api_key, model_name, endpoint, test_prompt)
         elif provider == LLMProvider.ANTHROPIC:
             return await _test_anthropic(api_key, model_name, endpoint, test_prompt)
-        elif provider == LLMProvider.BAIDU:
-            return await _test_baidu(api_key, api_secret, model_name, test_prompt)
-        elif provider == LLMProvider.ALIYUN:
-            return await _test_aliyun(api_key, model_name, test_prompt)
+        # elif provider == LLMProvider.BAIDU:
+        #     return await _test_baidu(api_key, api_secret, model_name, test_prompt)
+        # elif provider == LLMProvider.ALIYUN:
+        #     return await _test_aliyun(api_key, model_name, test_prompt)
         elif provider == LLMProvider.ZKH:
             return await _test_zkh(api_key, model_name, endpoint, test_prompt)
         elif provider == LLMProvider.LOCAL:
