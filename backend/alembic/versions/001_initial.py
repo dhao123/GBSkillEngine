@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '001_initial'
+revision: str = '001'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -36,6 +36,7 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=False),
         sa.Column('updated_at', sa.DateTime(), server_default=sa.text('CURRENT_TIMESTAMP'), 
                   onupdate=sa.text('CURRENT_TIMESTAMP'), nullable=False),
+        sa.Column('created_by', sa.String(100), nullable=True, comment='创建人'),
         sa.PrimaryKeyConstraint('id'),
         comment='国标管理表'
     )
@@ -57,6 +58,7 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=False),
         sa.Column('updated_at', sa.DateTime(), server_default=sa.text('CURRENT_TIMESTAMP'),
                   onupdate=sa.text('CURRENT_TIMESTAMP'), nullable=False),
+        sa.Column('created_by', sa.String(100), nullable=True, comment='创建人'),
         sa.ForeignKeyConstraint(['standard_id'], ['standards.id'], ondelete='SET NULL'),
         sa.PrimaryKeyConstraint('id'),
         comment='Skill管理表'
@@ -72,6 +74,7 @@ def upgrade() -> None:
         sa.Column('change_log', sa.Text(), nullable=True, comment='变更说明'),
         sa.Column('is_active', sa.Boolean(), nullable=False, server_default='false', comment='是否为当前激活版本'),
         sa.Column('created_at', sa.DateTime(), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=False),
+        sa.Column('created_by', sa.String(100), nullable=True, comment='创建人'),
         sa.ForeignKeyConstraint(['skill_id'], ['skills.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
         comment='Skill版本历史表'

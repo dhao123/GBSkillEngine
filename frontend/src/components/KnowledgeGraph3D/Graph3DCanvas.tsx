@@ -73,6 +73,8 @@ export default function Graph3DCanvas({
         // 增大节点尺寸以提高可见度
         const sizes: Record<string, number> = {
           Domain: 60,
+          StandardSeries: 50,  // 标准系列
+          SkillFamily: 45,     // 技能族
           Standard: 35,
           Skill: 30,
           Category: 20,

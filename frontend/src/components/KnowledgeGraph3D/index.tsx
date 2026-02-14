@@ -206,10 +206,12 @@ export default function KnowledgeGraph3D() {
             <div className="text-xs text-gray-400 mb-2">图例</div>
             <div className="flex flex-wrap gap-3">
               {[
+                { type: 'Domain', name: '领域', color: '#f59e0b' },
+                { type: 'StandardSeries', name: '系列', color: '#fbbf24' },
                 { type: 'Standard', name: '国标', color: '#00d4ff' },
+                { type: 'SkillFamily', name: '技能族', color: '#34d399' },
                 { type: 'Skill', name: '技能', color: '#ff6b6b' },
                 { type: 'Category', name: '类目', color: '#7c3aed' },
-                { type: 'Domain', name: '领域', color: '#f59e0b' },
               ].map(item => (
                 <div key={item.type} className="flex items-center gap-1">
                   <span 

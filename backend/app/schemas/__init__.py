@@ -41,6 +41,58 @@ from app.schemas.kg import (
     CypherQueryResponse
 )
 
+# 新增Schema
+from app.schemas.domain import (
+    DomainBase,
+    DomainCreate,
+    DomainUpdate,
+    DomainResponse,
+    DomainListResponse,
+    DomainWithStats
+)
+from app.schemas.standard_series import (
+    StandardSeriesBase,
+    StandardSeriesCreate,
+    StandardSeriesUpdate,
+    StandardSeriesResponse,
+    StandardSeriesListResponse,
+    StandardSeriesWithStandards,
+    SeriesDetectionResult
+)
+from app.schemas.category import (
+    CategoryBase,
+    CategoryCreate,
+    CategoryUpdate,
+    CategoryResponse,
+    CategoryListResponse,
+    CategoryTreeNode,
+    CategoryTree,
+    CategoryHierarchy
+)
+from app.schemas.skill_family import (
+    SkillFamilyBase,
+    SkillFamilyCreate,
+    SkillFamilyUpdate,
+    SkillFamilyResponse,
+    SkillFamilyListResponse,
+    SkillFamilyMemberBase,
+    SkillFamilyMemberCreate,
+    SkillFamilyMemberResponse,
+    SkillFamilyWithMembers
+)
+from app.schemas.attribute_definition import (
+    AttributeDefinitionBase,
+    AttributeDefinitionCreate,
+    AttributeDefinitionUpdate,
+    AttributeDefinitionResponse,
+    AttributeDefinitionListResponse,
+    DomainAttributeBase,
+    DomainAttributeCreate,
+    DomainAttributeResponse,
+    DomainAttributeWithDetails,
+    AttributeByDomain
+)
+
 __all__ = [
     # Standard
     "StandardBase",
@@ -76,5 +128,50 @@ __all__ = [
     "RelationshipResponse",
     "GraphVisualizationResponse",
     "CypherQueryRequest",
-    "CypherQueryResponse"
+    "CypherQueryResponse",
+    # Domain
+    "DomainBase",
+    "DomainCreate",
+    "DomainUpdate",
+    "DomainResponse",
+    "DomainListResponse",
+    "DomainWithStats",
+    # StandardSeries
+    "StandardSeriesBase",
+    "StandardSeriesCreate",
+    "StandardSeriesUpdate",
+    "StandardSeriesResponse",
+    "StandardSeriesListResponse",
+    "StandardSeriesWithStandards",
+    "SeriesDetectionResult",
+    # Category
+    "CategoryBase",
+    "CategoryCreate",
+    "CategoryUpdate",
+    "CategoryResponse",
+    "CategoryListResponse",
+    "CategoryTreeNode",
+    "CategoryTree",
+    "CategoryHierarchy",
+    # SkillFamily
+    "SkillFamilyBase",
+    "SkillFamilyCreate",
+    "SkillFamilyUpdate",
+    "SkillFamilyResponse",
+    "SkillFamilyListResponse",
+    "SkillFamilyMemberBase",
+    "SkillFamilyMemberCreate",
+    "SkillFamilyMemberResponse",
+    "SkillFamilyWithMembers",
+    # AttributeDefinition
+    "AttributeDefinitionBase",
+    "AttributeDefinitionCreate",
+    "AttributeDefinitionUpdate",
+    "AttributeDefinitionResponse",
+    "AttributeDefinitionListResponse",
+    "DomainAttributeBase",
+    "DomainAttributeCreate",
+    "DomainAttributeResponse",
+    "DomainAttributeWithDetails",
+    "AttributeByDomain",
 ]

@@ -170,7 +170,7 @@ export default function Home() {
         <div className="relative z-10">
           <h1 className="text-2xl font-bold mb-2">GBSkillEngine</h1>
           <p className="text-white/80 mb-4">
-            MRO国标技能引擎平台 - 国标 → Skill 编译 → 知识图谱 → 物料标准化梳理
+            MRO国标技能引擎平台 - 国标 → Skills 编译 → 知识图谱 → 物料标准化梳理
           </p>
           <div className="flex gap-3 flex-wrap">
             <Link to="/standards/upload">
@@ -254,7 +254,7 @@ export default function Home() {
               title={
                 <span className="flex items-center gap-2">
                   <ThunderboltOutlined />
-                  Skill数量
+                  Skills数量
                 </span>
               }
               value={skillsTotal}

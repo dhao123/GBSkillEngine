@@ -63,12 +63,12 @@ async def lifespan(app: FastAPI):
 
 # 创建FastAPI应用
 app = FastAPI(
-    title="GBSkillEngine API",
+    title="GBSkillsEngine API",
     description="""
 ## MRO国标技能引擎平台
 
-GBSkillEngine 是一个面向MRO(维护、维修、运营)领域的国标技能引擎平台，
-实现从国家标准到Skill DSL的自动编译，并通过知识图谱实现物料的标准化梳理。
+GBSkillsEngine 是一个面向MRO(维护、维修、运营)领域的国标技能引擎平台，
+实现从国家标准到Skills DSL的自动编译，并通过知识图谱实现物料的标准化梳理。
 
 ### 核心功能
 
@@ -94,8 +94,8 @@ GBSkillEngine 是一个面向MRO(维护、维修、运营)领域的国标技能�
     redoc_url="/redoc",
     openapi_tags=tags_metadata,
     contact={
-        "name": "GBSkillEngine Team",
-        "email": "support@gbskillengine.com",
+        "name": "GBSkillsEngine Team",
+        "email": "donghao.zhang@zkh.com",
     },
     license_info={
         "name": "MIT License",
@@ -123,7 +123,7 @@ setup_exception_handlers(app)
 async def root():
     """根路径 - 健康检查"""
     return {
-        "name": "GBSkillEngine",
+        "name": "GBSkillsEngine",
         "version": "1.0.0",
         "status": "running",
         "message": "MRO国标技能引擎平台"

@@ -2,6 +2,7 @@
 GBSkillEngine 知识图谱同步服务
 
 负责将Standard和Skill数据同步到Neo4j知识图谱
+支持动态领域、标准系列、技能族等新实体
 """
 import logging
 import math
@@ -14,42 +15,13 @@ from app.models.skill import Skill
 
 logger = logging.getLogger(__name__)
 
-# 示例领域配置（后续可扩展为42个一级类目）
-DOMAIN_CONFIG = {
-    "pipe": {
-        "name": "管道系统",
-        "color": "#00d4ff",
-        "sector_angle": 0
-    },
-    "fastener": {
-        "name": "紧固件",
-        "color": "#ff6b6b",
-        "sector_angle": 60
-    },
-    "valve": {
-        "name": "阀门",
-        "color": "#7c3aed",
-        "sector_angle": 120
-    },
-    "fitting": {
-        "name": "管件",
-        "color": "#10b981",
-        "sector_angle": 180
-    },
-    "bearing": {
-        "name": "轴承",
-        "color": "#f59e0b",
-        "sector_angle": 240
-    },
-    "seal": {
-        "name": "密封件",
-        "color": "#ec4899",
-        "sector_angle": 300
-    },
+# 默认领域配置 - 仅作为数据库为空时的后备方案
+# 正式环境领域应由LLM从国标文件推断后写入数据库
+DEFAULT_DOMAIN_CONFIG = {
     "general": {
         "name": "通用",
         "color": "#6b7280",
-        "sector_angle": 330
+        "sector_angle": 0
     }
 }
 
@@ -59,7 +31,9 @@ NODE_COLORS = {
     "Skill": "#ff6b6b",
     "Category": "#7c3aed",
     "Domain": "#f59e0b",
-    "TimeSlice": "#6366f1"
+    "TimeSlice": "#6366f1",
+    "StandardSeries": "#fbbf24",  # 金色
+    "SkillFamily": "#34d399"      # 绿色
 }
 
 # 时间基准年份（用于计算Z坐标）
@@ -86,6 +60,9 @@ class KnowledgeGraphSyncService:
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (d:Domain) REQUIRE d.domain_id IS UNIQUE",
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (t:TimeSlice) REQUIRE t.year IS UNIQUE",
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (c:Category) REQUIRE c.category_id IS UNIQUE",
+                # 新增实体约束
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (ss:StandardSeries) REQUIRE ss.series_code IS UNIQUE",
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (sf:SkillFamily) REQUIRE sf.family_code IS UNIQUE",
             ]
             
             for constraint in constraints:
@@ -100,6 +77,9 @@ class KnowledgeGraphSyncService:
                 "CREATE INDEX IF NOT EXISTS FOR (s:Standard) ON (s.domain)",
                 "CREATE INDEX IF NOT EXISTS FOR (sk:Skill) ON (sk.domain)",
                 "CREATE INDEX IF NOT EXISTS FOR (c:Category) ON (c.level)",
+                # 新增索引
+                "CREATE INDEX IF NOT EXISTS FOR (ss:StandardSeries) ON (ss.domain_id)",
+                "CREATE INDEX IF NOT EXISTS FOR (sf:SkillFamily) ON (sf.domain_id)",
             ]
             
             for index in indexes:
@@ -114,19 +94,26 @@ class KnowledgeGraphSyncService:
         except Exception as e:
             logger.warning(f"Neo4j Schema初始化失败（可能未连接）: {e}")
     
-    def _calculate_position(self, domain: str, year: int, offset: float = 0) -> Dict[str, float]:
+    def _calculate_position(self, domain: str, year: int, offset: float = 0,
+                             domain_config: Optional[Dict[str, Any]] = None) -> Dict[str, float]:
         """计算节点的3D位置
         
         Args:
             domain: 领域标识
             year: 年份（用于Z轴）
             offset: 在领域内的偏移量
+            domain_config: 领域配置（包含sector_angle），如未提供则使用默认值
             
         Returns:
             包含x, y, z的位置字典
         """
-        domain_config = DOMAIN_CONFIG.get(domain, DOMAIN_CONFIG["general"])
-        angle = math.radians(domain_config["sector_angle"])
+        # 如果提供了domain_config，使用其中的sector_angle
+        if domain_config:
+            angle = math.radians(domain_config.get("sector_angle", 0))
+        else:
+            # 默认使用通用配置
+            default_config = DEFAULT_DOMAIN_CONFIG.get(domain, DEFAULT_DOMAIN_CONFIG["general"])
+            angle = math.radians(default_config.get("sector_angle", 0))
         
         # 基础半径
         radius = 200 + offset * 30
@@ -140,16 +127,27 @@ class KnowledgeGraphSyncService:
         
         return {"x": x, "y": y, "z": z}
     
-    async def ensure_domain_node(self, domain: str) -> str:
+    async def ensure_domain_node(self, domain: str, 
+                                   domain_name: Optional[str] = None,
+                                   color: Optional[str] = None,
+                                   sector_angle: Optional[float] = None) -> str:
         """确保领域节点存在
         
         Args:
-            domain: 领域标识
+            domain: 领域标识（domain_code）
+            domain_name: 领域名称（可选，如未提供则使用domain作为名称）
+            color: 领域颜色（可选，如未提供则使用默认颜色）
+            sector_angle: 扇区角度（可选）
             
         Returns:
             领域节点ID
         """
-        domain_config = DOMAIN_CONFIG.get(domain, DOMAIN_CONFIG["general"])
+        # 使用提供的参数或默认值
+        default_config = DEFAULT_DOMAIN_CONFIG.get(domain, DEFAULT_DOMAIN_CONFIG["general"])
+        actual_name = domain_name or default_config.get("name", domain)
+        actual_color = color or default_config.get("color", "#6b7280")
+        actual_angle = sector_angle if sector_angle is not None else default_config.get("sector_angle", 0)
+        
         domain_id = f"domain_{domain}"
         
         query = """
@@ -165,9 +163,9 @@ class KnowledgeGraphSyncService:
         try:
             result = await neo4j_client.execute_query(query, {
                 "domain_id": domain_id,
-                "domain_name": domain_config["name"],
-                "color": domain_config["color"],
-                "sector_angle": domain_config["sector_angle"]
+                "domain_name": actual_name,
+                "color": actual_color,
+                "sector_angle": actual_angle
             })
             return result[0]["id"] if result else domain_id
         except Exception as e:
@@ -664,7 +662,7 @@ class KnowledgeGraphSyncService:
             }
     
     async def get_domains(self) -> List[Dict[str, Any]]:
-        """获取所有领域列表"""
+        """获取所有领域列表（优先从Neo4j获取，无数据时返回默认配置）"""
         try:
             query = """
             MATCH (d:Domain)
@@ -674,7 +672,7 @@ class KnowledgeGraphSyncService:
             """
             result = await neo4j_client.execute_query(query, {})
             
-            # 如果Neo4j没有数据，返回配置中的领域
+            # 如果Neo4j没有数据，返回默认领域配置
             if not result:
                 return [
                     {
@@ -683,7 +681,7 @@ class KnowledgeGraphSyncService:
                         "color": v["color"],
                         "sector_angle": v["sector_angle"]
                     }
-                    for k, v in DOMAIN_CONFIG.items()
+                    for k, v in DEFAULT_DOMAIN_CONFIG.items()
                 ]
             
             return result
@@ -696,7 +694,7 @@ class KnowledgeGraphSyncService:
                     "color": v["color"],
                     "sector_angle": v["sector_angle"]
                 }
-                for k, v in DOMAIN_CONFIG.items()
+                for k, v in DEFAULT_DOMAIN_CONFIG.items()
             ]
     
     async def get_time_slices(self) -> List[Dict[str, Any]]:
@@ -733,6 +731,156 @@ class KnowledgeGraphSyncService:
                 }
                 for year in range(2018, current_year + 1)
             ]
+    
+    async def sync_standard_series(self, series_code: str, series_name: str,
+                                    domain_id: Optional[int] = None,
+                                    part_count: int = 1) -> Optional[str]:
+        """同步StandardSeries到Neo4j
+        
+        Args:
+            series_code: 系列编号
+            series_name: 系列名称
+            domain_id: 领域ID
+            part_count: 分部数量
+            
+        Returns:
+            创建的节点ID，失败返回None
+        """
+        await self.initialize()
+        
+        try:
+            query = """
+            MERGE (ss:StandardSeries {series_code: $series_code})
+            ON CREATE SET 
+                ss.series_name = $series_name,
+                ss.domain_id = $domain_id,
+                ss.part_count = $part_count,
+                ss.color = $color,
+                ss.created_at = datetime()
+            ON MATCH SET
+                ss.series_name = $series_name,
+                ss.part_count = $part_count,
+                ss.updated_at = datetime()
+            RETURN ss.series_code as id
+            """
+            
+            result = await neo4j_client.execute_query(query, {
+                "series_code": series_code,
+                "series_name": series_name,
+                "domain_id": domain_id,
+                "part_count": part_count,
+                "color": NODE_COLORS["StandardSeries"]
+            })
+            
+            logger.info(f"StandardSeries同步到Neo4j成功: {series_code}")
+            return result[0]["id"] if result else None
+            
+        except Exception as e:
+            logger.error(f"StandardSeries同步到Neo4j失败: {e}")
+            return None
+    
+    async def sync_skill_family(self, family_code: str, family_name: str,
+                                 series_code: Optional[str] = None,
+                                 domain_id: Optional[int] = None) -> Optional[str]:
+        """同步SkillFamily到Neo4j
+        
+        Args:
+            family_code: 技能族编码
+            family_name: 技能族名称
+            series_code: 关联的系列编号
+            domain_id: 领域ID
+            
+        Returns:
+            创建的节点ID，失败返回None
+        """
+        await self.initialize()
+        
+        try:
+            query = """
+            MERGE (sf:SkillFamily {family_code: $family_code})
+            ON CREATE SET 
+                sf.family_name = $family_name,
+                sf.domain_id = $domain_id,
+                sf.color = $color,
+                sf.created_at = datetime()
+            ON MATCH SET
+                sf.family_name = $family_name,
+                sf.updated_at = datetime()
+            RETURN sf.family_code as id
+            """
+            
+            result = await neo4j_client.execute_query(query, {
+                "family_code": family_code,
+                "family_name": family_name,
+                "domain_id": domain_id,
+                "color": NODE_COLORS["SkillFamily"]
+            })
+            
+            # 如果有关联的系列，创建关系
+            if series_code:
+                await neo4j_client.execute_query("""
+                    MATCH (sf:SkillFamily {family_code: $family_code})
+                    MATCH (ss:StandardSeries {series_code: $series_code})
+                    MERGE (sf)-[:FAMILY_FROM_SERIES]->(ss)
+                """, {
+                    "family_code": family_code,
+                    "series_code": series_code
+                })
+            
+            logger.info(f"SkillFamily同步到Neo4j成功: {family_code}")
+            return result[0]["id"] if result else None
+            
+        except Exception as e:
+            logger.error(f"SkillFamily同步到Neo4j失败: {e}")
+            return None
+    
+    async def link_standard_to_series(self, standard_code: str, series_code: str) -> bool:
+        """创建Standard与StandardSeries的关系
+        
+        Args:
+            standard_code: 国标编号
+            series_code: 系列编号
+            
+        Returns:
+            是否成功
+        """
+        try:
+            await neo4j_client.execute_query("""
+                MATCH (s:Standard {standard_code: $standard_code})
+                MATCH (ss:StandardSeries {series_code: $series_code})
+                MERGE (s)-[:PART_OF_SERIES]->(ss)
+            """, {
+                "standard_code": standard_code,
+                "series_code": series_code
+            })
+            return True
+        except Exception as e:
+            logger.warning(f"创建Standard-Series关系失败: {e}")
+            return False
+    
+    async def link_skill_to_family(self, skill_id: str, family_code: str) -> bool:
+        """创建Skill与SkillFamily的关系
+        
+        Args:
+            skill_id: Skill ID
+            family_code: 技能族编码
+            
+        Returns:
+            是否成功
+        """
+        try:
+            await neo4j_client.execute_query("""
+                MATCH (sk:Skill {skill_id: $skill_id})
+                MATCH (sf:SkillFamily {family_code: $family_code})
+                MERGE (sk)-[:BELONGS_TO_FAMILY]->(sf)
+            """, {
+                "skill_id": skill_id,
+                "family_code": family_code
+            })
+            return True
+        except Exception as e:
+            logger.warning(f"创建Skill-Family关系失败: {e}")
+            return False
 
 
 # 创建全局实例

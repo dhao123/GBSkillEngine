@@ -16,7 +16,7 @@ export interface NodeStyle {
 
 export interface Graph3DNode {
   id: string
-  nodeType: 'Standard' | 'Skill' | 'Category' | 'Domain' | 'TimeSlice'
+  nodeType: 'Standard' | 'Skill' | 'Category' | 'Domain' | 'TimeSlice' | 'StandardSeries' | 'SkillFamily'
   label: string
   properties: Record<string, unknown>
   position: Position3D
@@ -74,7 +74,9 @@ export const NODE_COLORS: Record<string, string> = {
   Skill: '#ff6b6b',
   Category: '#7c3aed',
   Domain: '#f59e0b',
-  TimeSlice: '#6366f1'
+  TimeSlice: '#6366f1',
+  StandardSeries: '#fbbf24',  // 金色 - 标准系列
+  SkillFamily: '#34d399'      // 绿色 - 技能族
 }
 
 // 节点类型中文名
@@ -83,5 +85,7 @@ export const NODE_TYPE_NAMES: Record<string, string> = {
   Skill: '技能',
   Category: '类目',
   Domain: '领域',
-  TimeSlice: '时间'
+  TimeSlice: '时间',
+  StandardSeries: '系列',
+  SkillFamily: '技能族'
 }
