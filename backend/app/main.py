@@ -94,7 +94,7 @@ GBSkillsEngine 是一个面向MRO(维护、维修、运营)领域的国标技能
     redoc_url="/redoc",
     openapi_tags=tags_metadata,
     contact={
-        "name": "GBSkillsEngine Team",
+        "name": "QA-Team",
         "email": "donghao.zhang@zkh.com",
     },
     license_info={
